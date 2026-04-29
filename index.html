@@ -43,6 +43,17 @@
     100% { transform: scale(0.6); }   /* 吐氣 8s */
   }
   .breathe-orb { animation: breathe 19s ease-in-out infinite; }
+
+  /* 降溫模塊：計時器圓弧 */
+  .timer-ring { transition: stroke-dashoffset 1s linear; }
+
+  /* 情緒溫度計按鈕：選中時亮起 */
+  .score-btn { transition: background 0.15s, transform 0.1s; }
+  .score-btn.selected { transform: scale(1.15); }
+
+  /* 技巧卡展開動畫 */
+  .technique-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .technique-card.open .technique-body { max-height: 200px; }
 </style>
 </head>
 <body class="font-sans select-none">
@@ -63,7 +74,7 @@
       class="btn-press w-64 h-64 rounded-full bg-gradient-to-br from-shield/30 to-calm/20
              border border-shield/40 shadow-[0_0_60px_-10px_rgba(34,211,238,0.5)]
              text-shield text-2xl tracking-widest font-light">
-      啟動護盾
+      我現在很躁
     </button>
     <button data-go="translator"
       class="mt-10 text-neutral-300 text-base underline underline-offset-4 decoration-neutral-700 btn-press">
@@ -71,7 +82,69 @@
     </button>
   </section>
 
-  <!-- ===== 畫面 2：呼吸頁 ===== -->
+  <!-- ===== 畫面 2：降溫模塊 ===== -->
+  <section id="screen-cool" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
+
+    <!-- Step A：情緒溫度計 -->
+    <div id="cool-step-score">
+      <h2 class="text-xl mt-2 mb-1">現在幾分燙？</h2>
+      <p class="text-neutral-500 text-sm mb-5">1 = 有點煩　10 = 快爆炸</p>
+      <div class="grid grid-cols-5 gap-2 mb-3">
+        <!-- JS 動態生成 -->
+      </div>
+      <div id="cool-score-hint" class="text-neutral-600 text-sm text-center mt-2">點一個數字</div>
+    </div>
+
+    <!-- Step B：技巧 + 計時器（選完分數才顯示） -->
+    <div id="cool-step-action" class="hidden mt-6">
+
+      <div id="cool-heat-label" class="text-sm text-neutral-400 mb-4"></div>
+
+      <!-- 技巧卡列表（JS 動態注入） -->
+      <div id="cool-techniques-list" class="space-y-3 mb-6"></div>
+
+      <!-- 暫停計時器 -->
+      <div class="rounded-2xl bg-panel border border-edge p-5">
+        <p class="text-neutral-400 text-sm mb-3">先暫停，給自己幾秒不回應</p>
+
+        <!-- 秒數選擇 -->
+        <div class="flex gap-2 mb-5">
+          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="60">60秒</button>
+          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="90">90秒</button>
+          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="120">2分鐘</button>
+          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="180">3分鐘</button>
+        </div>
+
+        <!-- 圓弧計時器 -->
+        <div class="flex flex-col items-center">
+          <div class="relative w-36 h-36">
+            <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#1f1f1f" stroke-width="8"/>
+              <circle id="timer-arc" cx="60" cy="60" r="52" fill="none"
+                stroke="#22d3ee" stroke-width="8" stroke-linecap="round"
+                stroke-dasharray="326.7" stroke-dashoffset="0"
+                class="timer-ring"/>
+            </svg>
+            <div id="timer-display" class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="timer-number" class="text-3xl text-shield font-light">60</span>
+              <span class="text-neutral-600 text-xs">秒</span>
+            </div>
+          </div>
+
+          <button id="btn-timer-start"
+            class="mt-5 px-10 py-3 rounded-full bg-shield/20 border border-shield/40 text-shield btn-press">
+            開始
+          </button>
+          <div id="timer-done-msg" class="hidden mt-4 text-neutral-300 text-sm text-center">
+            好了。深一口氣，你可以繼續了。
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===== 畫面 3：呼吸頁 ===== -->
   <section id="screen-breathe" class="screen flex-1 flex-col items-center justify-center px-6">
     <div class="relative w-72 h-72 flex items-center justify-center">
       <div class="absolute w-full h-full rounded-full bg-calm/10"></div>
@@ -127,12 +200,12 @@
 </main>
 
 <script>
-/* ---------- 路由（hash-less，純切換 active class） ---------- */
-const screens = ['shield', 'breathe', 'translator', 'scripts', 'settings'];
+/* ---------- 路由 ---------- */
+const screens = ['shield', 'cool', 'breathe', 'translator', 'scripts', 'settings'];
 function go(name) {
   screens.forEach(s => {
     const el = document.getElementById('screen-' + s);
-    el.classList.toggle('active', s === name);
+    if (el) el.classList.toggle('active', s === name);
   });
   if (navigator.vibrate) navigator.vibrate(8);
   window.scrollTo(0, 0);
@@ -141,12 +214,212 @@ document.querySelectorAll('[data-go]').forEach(b =>
   b.addEventListener('click', () => go(b.dataset.go))
 );
 
-/* ---------- 主盾牌：啟動 → 呼吸 ---------- */
+/* ---------- 主盾牌：啟動 → 降溫模塊 ---------- */
 document.getElementById('btn-shield').addEventListener('click', () => {
   if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
-  go('breathe');
-  startBreatheLabel();
+  resetCool();
+  go('cool');
 });
+
+/* ============================================================
+   降溫模塊
+   ============================================================ */
+
+/* 技巧資料庫 */
+const TECHNIQUES = {
+  breathe: {
+    icon: '🌬️', title: '4-7-8 呼吸',
+    body: '吸 4 秒 → 屏息 7 秒 → 吐氣 8 秒。做兩輪，副交感神經強制介入，心跳會降下來。',
+    action: { label: '進入呼吸引導', cb: () => { go('breathe'); startBreatheLabel(); } },
+  },
+  fist: {
+    icon: '✊', title: '握拳釋放',
+    body: '雙手用力握緊拳頭，數 5 秒，然後瞬間完全放開。重複 3 次。把累積的火氣從手指排出去。',
+  },
+  grayrock: {
+    icon: '🪨', title: '灰岩法',
+    body: '你現在是一塊無聊的石頭。只給最短回應：「喔」「好」「沒辦法」。不解釋、不爭辯、不給能量。對方想引爆你，你就讓他撞牆。',
+  },
+  reframe_high: {
+    icon: '💡', title: '認知重構',
+    body: '她的爛心情不是你造成的，也不是你能修的。你的工作是賣東西，不是處理別人的情緒問題。',
+  },
+  reframe_mid: {
+    icon: '💰', title: '認知重構',
+    body: '這 2 分鐘的火，不值得賠上今晚的收入和明天的心情。錢比較重要，氣等一下再生。',
+  },
+  reframe_low: {
+    icon: '🧠', title: '認知重構',
+    body: '擺攤是來賺錢的，不是來贏辯論的。這個人離開之後你不會再見到他，不需要讓他佔據你的腦子。',
+  },
+  ground: {
+    icon: '👁️', title: '感官接地',
+    body: '環顧四周，說出你看到的 3 樣東西。把注意力從那個人身上拉回現實環境。',
+  },
+};
+
+/* 依燙度決定顯示哪些技巧 */
+function getTechniquesForScore(score) {
+  if (score >= 8) return ['breathe', 'fist', 'grayrock', 'reframe_high', 'ground'];
+  if (score >= 5) return ['fist', 'grayrock', 'reframe_mid', 'breathe'];
+  return ['reframe_low', 'grayrock', 'reframe_mid'];
+}
+
+/* 燙度對應文字 */
+function heatLabel(score) {
+  if (score >= 8) return `燙度 ${score}/10　—　先讓身體冷靜，再想後續`;
+  if (score >= 5) return `燙度 ${score}/10　—　有點熱，用技巧把火壓下去`;
+  return `燙度 ${score}/10　—　你還撐得住，把姿態保住`;
+}
+
+/* 燙度按鈕顏色 */
+function scoreColor(n) {
+  if (n <= 3) return { bg: 'bg-emerald-900/60', border: 'border-emerald-500/60', text: 'text-emerald-300', sel: 'bg-emerald-600' };
+  if (n <= 6) return { bg: 'bg-amber-900/60',   border: 'border-amber-500/60',   text: 'text-amber-300',   sel: 'bg-amber-500'  };
+  return             { bg: 'bg-red-900/60',      border: 'border-red-500/60',     text: 'text-red-300',     sel: 'bg-red-600'    };
+}
+
+/* 建立分數按鈕 */
+(function buildScoreButtons() {
+  const grid = document.querySelector('#cool-step-score .grid');
+  for (let n = 1; n <= 10; n++) {
+    const c = scoreColor(n);
+    const btn = document.createElement('button');
+    btn.className = `score-btn py-4 rounded-2xl ${c.bg} border ${c.border} ${c.text} text-xl font-light btn-press`;
+    btn.textContent = n;
+    btn.dataset.score = n;
+    btn.addEventListener('click', () => onScoreSelected(n));
+    grid.appendChild(btn);
+  }
+})();
+
+function onScoreSelected(score) {
+  /* 按鈕視覺 */
+  document.querySelectorAll('.score-btn').forEach(b => {
+    const n = +b.dataset.score;
+    const c = scoreColor(n);
+    b.classList.remove('selected', 'bg-emerald-600', 'bg-amber-500', 'bg-red-600');
+    b.className = `score-btn py-4 rounded-2xl ${c.bg} border ${c.border} ${c.text} text-xl font-light btn-press`;
+    if (n === score) {
+      b.classList.add('selected', scoreColor(n).sel.split(' ')[0]);
+    }
+  });
+  document.getElementById('cool-score-hint').textContent = `${score} 分`;
+
+  /* 顯示技巧區 */
+  document.getElementById('cool-heat-label').textContent = heatLabel(score);
+  buildTechniqueCards(getTechniquesForScore(score));
+  document.getElementById('cool-step-action').classList.remove('hidden');
+
+  if (navigator.vibrate) navigator.vibrate(12);
+  setTimeout(() => document.getElementById('cool-step-action').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+}
+
+/* 建立技巧卡 */
+function buildTechniqueCards(keys) {
+  const list = document.getElementById('cool-techniques-list');
+  list.innerHTML = '';
+  keys.forEach((key, i) => {
+    const t = TECHNIQUES[key];
+    if (!t) return;
+    const card = document.createElement('div');
+    card.className = 'technique-card rounded-2xl bg-panel border border-edge overflow-hidden';
+    card.innerHTML = `
+      <button class="technique-toggle w-full flex items-center gap-3 px-4 py-4 btn-press text-left">
+        <span class="text-2xl">${t.icon}</span>
+        <span class="flex-1 text-neutral-100">${t.title}</span>
+        <span class="technique-arrow text-neutral-600 text-sm transition-transform">▼</span>
+      </button>
+      <div class="technique-body px-4 pb-0">
+        <p class="text-neutral-400 text-sm leading-relaxed pb-4">${t.body}</p>
+        ${t.action ? `<button class="technique-action mb-4 px-5 py-2 rounded-full bg-shield/20 border border-shield/40 text-shield text-sm btn-press">${t.action.label}</button>` : ''}
+      </div>`;
+
+    /* 預設第一張展開 */
+    if (i === 0) {
+      card.classList.add('open');
+      card.querySelector('.technique-arrow').style.transform = 'rotate(180deg)';
+    }
+
+    card.querySelector('.technique-toggle').addEventListener('click', () => {
+      const isOpen = card.classList.toggle('open');
+      card.querySelector('.technique-arrow').style.transform = isOpen ? 'rotate(180deg)' : '';
+    });
+
+    if (t.action) {
+      card.querySelector('.technique-action').addEventListener('click', t.action.cb);
+    }
+
+    list.appendChild(card);
+  });
+}
+
+/* ---- 計時器 ---- */
+let timerTotal = 60, timerLeft = 60, timerInterval = null, timerRunning = false;
+const CIRCUMFERENCE = 2 * Math.PI * 52; // 326.7
+
+function setTimerDuration(sec) {
+  clearTimerInterval();
+  timerTotal = timerLeft = sec;
+  timerRunning = false;
+  updateTimerDisplay();
+  document.getElementById('timer-done-msg').classList.add('hidden');
+  document.getElementById('btn-timer-start').textContent = '開始';
+  document.querySelectorAll('.timer-dur-btn').forEach(b => {
+    b.classList.toggle('!border-shield/60', +b.dataset.sec === sec);
+    b.classList.toggle('text-shield', +b.dataset.sec === sec);
+  });
+}
+
+function updateTimerDisplay() {
+  document.getElementById('timer-number').textContent = timerLeft;
+  const offset = CIRCUMFERENCE * (1 - timerLeft / timerTotal);
+  document.getElementById('timer-arc').style.strokeDashoffset = offset;
+}
+
+function clearTimerInterval() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+document.querySelectorAll('.timer-dur-btn').forEach(b =>
+  b.addEventListener('click', () => setTimerDuration(+b.dataset.sec))
+);
+
+document.getElementById('btn-timer-start').addEventListener('click', () => {
+  if (timerRunning) {
+    clearTimerInterval();
+    timerRunning = false;
+    document.getElementById('btn-timer-start').textContent = '繼續';
+  } else {
+    if (timerLeft <= 0) setTimerDuration(timerTotal);
+    timerRunning = true;
+    document.getElementById('btn-timer-start').textContent = '暫停';
+    timerInterval = setInterval(() => {
+      timerLeft--;
+      updateTimerDisplay();
+      if (timerLeft <= 0) {
+        clearTimerInterval();
+        timerRunning = false;
+        document.getElementById('btn-timer-start').textContent = '重來';
+        document.getElementById('timer-done-msg').classList.remove('hidden');
+        if (navigator.vibrate) navigator.vibrate([100, 80, 100, 80, 200]);
+      }
+    }, 1000);
+  }
+});
+
+/* 重置降溫模塊狀態（每次進入時呼叫） */
+function resetCool() {
+  document.querySelectorAll('.score-btn').forEach(b => {
+    const n = +b.dataset.score;
+    const c = scoreColor(n);
+    b.className = `score-btn py-4 rounded-2xl ${c.bg} border ${c.border} ${c.text} text-xl font-light btn-press`;
+    b.classList.remove('selected');
+  });
+  document.getElementById('cool-score-hint').textContent = '點一個數字';
+  document.getElementById('cool-step-action').classList.add('hidden');
+  setTimerDuration(60);
+}
 
 /* ---------- 呼吸文字輪播（與 CSS 動畫對齊：4 / 7 / 8 秒） ---------- */
 let breatheTimer = null;
