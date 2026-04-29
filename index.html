@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>防小人護盾</title>
+
+<link rel="manifest" href="manifest.webmanifest" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:    '#0a0a0a',
+          panel:  '#141414',
+          edge:   '#1f1f1f',
+          calm:   '#3b82f6',
+          shield: '#22d3ee',
+          warn:   '#f59e0b',
+        },
+        fontFamily: {
+          sans: ['"Noto Sans TC"', 'system-ui', 'sans-serif'],
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html, body { height: 100%; overscroll-behavior: none; }
+  body { background: #0a0a0a; color: #f5f5f5; -webkit-tap-highlight-color: transparent; }
+  .screen { display: none; }
+  .screen.active { display: flex; }
+  .btn-press:active { transform: scale(0.97); }
+  /* 呼吸圈動畫：吸 4 秒、停 7 秒、吐 8 秒 */
+  @keyframes breathe {
+    0%   { transform: scale(0.6); }
+    21%  { transform: scale(1.0); }   /* 吸氣 4s */
+    58%  { transform: scale(1.0); }   /* 屏息 7s */
+    100% { transform: scale(0.6); }   /* 吐氣 8s */
+  }
+  .breathe-orb { animation: breathe 19s ease-in-out infinite; }
+</style>
+</head>
+<body class="font-sans select-none">
+
+<!-- 容器 -->
+<main id="app" class="min-h-screen flex flex-col">
+
+  <!-- 頂部列：極簡，只有 logo 與設定 -->
+  <header class="flex items-center justify-between px-5 pt-5 pb-3">
+    <div class="text-xs tracking-[0.3em] text-neutral-500">SHIELD · 護盾</div>
+    <button data-go="settings" class="text-neutral-500 text-xl btn-press">⚙</button>
+  </header>
+
+  <!-- ===== 畫面 1：主盾牌頁 ===== -->
+  <section id="screen-shield" class="screen active flex-1 flex-col items-center justify-center px-6">
+    <p class="text-neutral-400 text-sm mb-8">深呼吸。錢是你的，情緒也是你的。</p>
+    <button id="btn-shield"
+      class="btn-press w-64 h-64 rounded-full bg-gradient-to-br from-shield/30 to-calm/20
+             border border-shield/40 shadow-[0_0_60px_-10px_rgba(34,211,238,0.5)]
+             text-shield text-2xl tracking-widest font-light">
+      啟動護盾
+    </button>
+    <button data-go="translator"
+      class="mt-10 text-neutral-300 text-base underline underline-offset-4 decoration-neutral-700 btn-press">
+      直接翻譯氣話 →
+    </button>
+  </section>
+
+  <!-- ===== 畫面 2：呼吸頁 ===== -->
+  <section id="screen-breathe" class="screen flex-1 flex-col items-center justify-center px-6">
+    <div class="relative w-72 h-72 flex items-center justify-center">
+      <div class="absolute w-full h-full rounded-full bg-calm/10"></div>
+      <div class="breathe-orb w-full h-full rounded-full bg-gradient-to-br from-calm/40 to-shield/30 border border-shield/30"></div>
+      <div id="breathe-label" class="absolute text-shield text-xl tracking-widest">準備</div>
+    </div>
+    <p class="mt-10 text-neutral-400 text-sm">跟著圈圈：吸 4 · 停 7 · 吐 8</p>
+    <button data-go="translator"
+      class="mt-8 px-8 py-3 rounded-full bg-edge text-neutral-200 btn-press">我冷靜了，下一步</button>
+  </section>
+
+  <!-- ===== 畫面 3：翻譯機 ===== -->
+  <section id="screen-translator" class="screen flex-1 flex-col px-6 pb-8">
+    <h2 class="text-xl mt-2 mb-1">氣話翻譯機</h2>
+    <p class="text-neutral-500 text-sm mb-4">把想罵的丟進來，我幫你包成有界線的版本。</p>
+
+    <textarea id="rant-input" rows="5"
+      placeholder="例：你他X的奧客，這價錢還想殺..."
+      class="w-full bg-panel border border-edge rounded-2xl p-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-shield/50"></textarea>
+
+    <div class="flex gap-3 mt-3">
+      <button id="btn-voice" class="flex-1 py-3 rounded-xl bg-edge text-neutral-200 btn-press">🎙 語音</button>
+      <button id="btn-translate" class="flex-1 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield btn-press">轉換</button>
+    </div>
+
+    <div id="translated-output"
+      class="mt-5 p-4 rounded-2xl bg-panel border border-edge text-neutral-200 min-h-[6rem] text-base leading-relaxed">
+      <span class="text-neutral-600">輸出會顯示在這裡。</span>
+    </div>
+
+    <div class="flex gap-3 mt-3">
+      <button id="btn-copy" class="flex-1 py-3 rounded-xl bg-edge text-neutral-300 btn-press">複製</button>
+      <button data-go="scripts" class="flex-1 py-3 rounded-xl bg-edge text-neutral-300 btn-press">話術庫</button>
+    </div>
+  </section>
+
+  <!-- ===== 畫面 4：話術庫 ===== -->
+  <section id="screen-scripts" class="screen flex-1 flex-col px-6 pb-8">
+    <h2 class="text-xl mt-2 mb-4">萬用話術</h2>
+    <ul id="scripts-list" class="space-y-3"></ul>
+  </section>
+
+  <!-- ===== 畫面 5：設定 ===== -->
+  <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8">
+    <h2 class="text-xl mt-2 mb-4">設定</h2>
+    <p class="text-neutral-500 text-sm">P1 階段加：震動、語音、字級、自訂話術。</p>
+  </section>
+
+  <!-- 底部回主頁 -->
+  <nav class="px-6 py-4 flex justify-center">
+    <button data-go="shield" class="text-neutral-500 text-sm tracking-widest btn-press">⌂ 回護盾</button>
+  </nav>
+</main>
+
+<script>
+/* ---------- 路由（hash-less，純切換 active class） ---------- */
+const screens = ['shield', 'breathe', 'translator', 'scripts', 'settings'];
+function go(name) {
+  screens.forEach(s => {
+    const el = document.getElementById('screen-' + s);
+    el.classList.toggle('active', s === name);
+  });
+  if (navigator.vibrate) navigator.vibrate(8);
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('[data-go]').forEach(b =>
+  b.addEventListener('click', () => go(b.dataset.go))
+);
+
+/* ---------- 主盾牌：啟動 → 呼吸 ---------- */
+document.getElementById('btn-shield').addEventListener('click', () => {
+  if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+  go('breathe');
+  startBreatheLabel();
+});
+
+/* ---------- 呼吸文字輪播（與 CSS 動畫對齊：4 / 7 / 8 秒） ---------- */
+let breatheTimer = null;
+function startBreatheLabel() {
+  const label = document.getElementById('breathe-label');
+  const cycle = [['吸', 4000], ['停', 7000], ['吐', 8000]];
+  let i = 0;
+  clearInterval(breatheTimer);
+  const tick = () => {
+    label.textContent = cycle[i][0];
+    breatheTimer = setTimeout(() => { i = (i + 1) % 3; tick(); }, cycle[i][1]);
+  };
+  tick();
+}
+
+/* ---------- 翻譯機：意圖偵測 → 禮貌模板輸出 ----------
+   策略：不清洗原文，而是偵測說話者的「意圖情境」，
+         直接輸出對應的得體版本。原文只用來判斷意圖。
+   -------------------------------------------------------- */
+
+// 每個 intent 包含：觸發關鍵字 / 場景描述 / 多組禮貌回應（隨機挑一）
+const INTENT_MAP = [
+  {
+    name: 'price_reject',
+    keywords: /殺價|降價|便宜一點|算便宜|少一點|打折|太貴|貴死|貴什麼|買這麼貴|這種價|不值|划不來|砍價|再便宜|少個零/,
+    responses: [
+      '不好意思，這個價格已經是我們的底價了，沒有辦法再調整，感謝您的理解。',
+      '抱歉，這價格我們已經做到最低，品質有保障，請見諒。',
+      '謝謝您的詢問，這個定價是固定的，無法再優惠，歡迎您再考慮看看。',
+    ],
+  },
+  {
+    name: 'quality_defend',
+    keywords: /不好|難吃|爛|品質差|假的|黑心|騙人|不新鮮|有問題|這什麼東西|垃圾|這樣也賣|坑|黑店/,
+    responses: [
+      '非常感謝您的反映，如果有任何問題我們很樂意處理，但請用正常方式溝通，謝謝。',
+      '我們的品質是有把握的，如果您有具體問題歡迎說明，我們會盡力協助。',
+      '不好意思讓您有這樣的感受，但請保持禮貌溝通，謝謝您。',
+    ],
+  },
+  {
+    name: 'end_conversation',
+    keywords: /滾|閉嘴|去死|不想理|煩死|閃|不想看到|走開|出去|離開|下一位|不服務|不要再來|趕人/,
+    responses: [
+      '不好意思，今天我們的服務就到這裡，希望您有愉快的一天，再見。',
+      '抱歉，我們目前沒辦法繼續這段對話，感謝您的光臨，再見。',
+      '非常抱歉，我們無法繼續服務，請問還有其他客人需要協助嗎？',
+    ],
+  },
+  {
+    name: 'wait_urge',
+    keywords: /慢死|等很久|怎麼這麼慢|速度|催|等半天|怎麼還沒|快一點|浪費時間|磨蹭/,
+    responses: [
+      '非常抱歉讓您久等，我們正在盡快處理，請再稍候一下，謝謝您的耐心。',
+      '不好意思讓您等待，目前正在忙碌中，馬上就好，感謝您的體諒。',
+      '抱歉，我們每一份都用心製作，請再等一下，感謝您的支持。',
+    ],
+  },
+  {
+    name: 'rude_general',
+    keywords: /白癡|智障|腦殘|廢物|沒用|爛貨|混蛋|去死|你算什麼|你懂什麼|幹|靠北|他媽|媽的|X的|吃屎|臭|賤|你這種|叫你去|看你|笑死|丟臉|羞恥|可悲|噁心|豬/,
+    responses: [
+      '不好意思，我們希望保持友善的溝通環境，謝謝您的配合。',
+      '抱歉，我們無法接受這樣的溝通方式，請您以尊重的態度交流，謝謝。',
+      '我們理解您可能有些不滿，但請保持基本的禮貌，這樣對雙方都好。',
+    ],
+  },
+  {
+    name: 'refuse_request',
+    keywords: /不可能|辦不到|不想|不要|不行|拒絕|不接受|做不到|沒有|沒辦法|不準|不允許|不讓|不給/,
+    responses: [
+      '非常抱歉，這個部分我們確實沒辦法配合，感謝您的理解。',
+      '不好意思，這個需求超出我們的服務範圍，無法協助，請見諒。',
+      '抱歉，這個我們真的做不到，希望您能體諒。',
+    ],
+  },
+];
+
+// 偵測意圖：掃所有 intent，回傳第一個命中的 responses
+function detectIntent(text) {
+  for (const intent of INTENT_MAP) {
+    if (intent.keywords.test(text)) return intent.responses;
+  }
+  return null;
+}
+
+// 通用兜底：嘗試保留語意核心，包上得體措辭
+const FALLBACK_TEMPLATES = [
+  '不好意思，關於您提到的部分，我們目前沒有辦法配合，感謝您的理解。',
+  '抱歉，這個部分我們立場不同，希望您能理解，謝謝。',
+  '感謝您的意見，我們會記下來，今天就先到這裡，謝謝您。',
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function translate(text) {
+  if (!text.trim()) return '（先說說你想罵什麼？）';
+  const responses = detectIntent(text);
+  if (responses) return pick(responses);
+  return pick(FALLBACK_TEMPLATES);
+}
+
+document.getElementById('btn-translate').addEventListener('click', () => {
+  const input = document.getElementById('rant-input').value;
+  const out = translate(input);
+  document.getElementById('translated-output').textContent = out;
+});
+
+document.getElementById('btn-copy').addEventListener('click', async () => {
+  const txt = document.getElementById('translated-output').textContent;
+  try { await navigator.clipboard.writeText(txt); } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate(15);
+});
+
+/* ---------- 語音輸入（Web Speech API，僅 P1 占位） ---------- */
+document.getElementById('btn-voice').addEventListener('click', () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert('這台手機暫不支援語音，先用打字。'); return; }
+  const r = new SR(); r.lang = 'zh-TW'; r.start();
+  r.onresult = e => {
+    document.getElementById('rant-input').value = e.results[0][0].transcript;
+  };
+});
+
+/* ---------- 話術庫 ---------- */
+const SCRIPTS = [
+  '不好意思，這個價錢已經是底價了，沒辦法再低喔。',
+  '老闆說今天就這個價，您要不要再考慮一下？',
+  '抱歉，這部分我們沒辦法配合，謝謝您。',
+  '不好意思，後面還有客人，麻煩您決定一下。',
+  '這個品質就是這個價格，您可以再比較看看。',
+  '不好意思，做生意要互相，這樣我會虧本。',
+  '謝謝您今天過來，祝您順心。',
+  '我們不接受這樣的講話方式，請您離開，謝謝。',
+];
+const list = document.getElementById('scripts-list');
+SCRIPTS.forEach(s => {
+  const li = document.createElement('li');
+  li.className = 'p-4 rounded-2xl bg-panel border border-edge text-neutral-200 btn-press active:bg-edge';
+  li.textContent = s;
+  li.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(s); } catch (e) {}
+    li.classList.add('!border-shield/60');
+    setTimeout(() => li.classList.remove('!border-shield/60'), 600);
+    if (navigator.vibrate) navigator.vibrate(15);
+  });
+  list.appendChild(li);
+});
+
+/* ---------- PWA service worker（之後補 sw.js） ---------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
