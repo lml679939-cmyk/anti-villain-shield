@@ -29,9 +29,25 @@
     },
   };
 </script>
+<style id="user-theme">
+  /* 動態主題：由 JS 覆寫 */
+  :root {
+    --u-bg:    #0a0a0a;
+    --u-panel: #141414;
+    --u-edge:  #1f1f1f;
+    --u-text:  #f5f5f5;
+    --u-muted: #525252;
+  }
+  body        { background-color: var(--u-bg)    !important; color: var(--u-text) !important; }
+  .bg-panel   { background-color: var(--u-panel) !important; }
+  .bg-edge    { background-color: var(--u-edge)  !important; }
+  .border-edge { border-color:   var(--u-edge)   !important; }
+  .text-neutral-100, .text-neutral-200 { color: var(--u-text)  !important; }
+  .text-neutral-500, .text-neutral-600 { color: var(--u-muted) !important; }
+</style>
 <style>
   html, body { height: 100%; overscroll-behavior: none; }
-  body { background: #0a0a0a; color: #f5f5f5; -webkit-tap-highlight-color: transparent; }
+  body { -webkit-tap-highlight-color: transparent; }
   .screen { display: none; }
   .screen.active { display: flex; }
   .btn-press:active { transform: scale(0.97); }
@@ -154,6 +170,8 @@
     <p class="mt-10 text-neutral-400 text-sm">跟著圈圈：吸 4 · 停 7 · 吐 8</p>
     <button data-go="translator"
       class="mt-8 px-8 py-3 rounded-full bg-edge text-neutral-200 btn-press">我冷靜了，下一步</button>
+    <button data-go="cool"
+      class="mt-3 text-neutral-600 text-sm btn-press underline underline-offset-4 decoration-neutral-800">← 回到燙度評估</button>
   </section>
 
   <!-- ===== 畫面 3：禮貌化回應生成器 ===== -->
@@ -233,9 +251,43 @@
   </section>
 
   <!-- ===== 畫面 5：設定 ===== -->
-  <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8">
-    <h2 class="text-xl mt-2 mb-4">設定</h2>
-    <p class="text-neutral-500 text-sm">P1 階段加：震動、語音、字級、自訂話術。</p>
+  <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
+    <h2 class="text-xl mt-2 mb-6">設定</h2>
+
+    <!-- 背景主題 -->
+    <div class="mb-7">
+      <p class="text-neutral-500 text-xs tracking-widest mb-3">背景顏色</p>
+      <div class="flex gap-3 flex-wrap">
+        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="black"  style="background:#0a0a0a;outline:2px solid #444;outline-offset:2px"></button>
+        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="gray"   style="background:#1f2937"></button>
+        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="navy"   style="background:#0a0f1e"></button>
+        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="warm"   style="background:#1c1007"></button>
+        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="light"  style="background:#f0f0f0"></button>
+        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="white"  style="background:#ffffff;outline:1px solid #ccc;outline-offset:2px"></button>
+      </div>
+      <p id="theme-label" class="text-neutral-600 text-xs mt-2"></p>
+    </div>
+
+    <!-- 字體大小 -->
+    <div class="mb-7">
+      <p class="text-neutral-500 text-xs tracking-widest mb-3">字體大小</p>
+      <div class="flex gap-2">
+        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-sm" data-size="14">小</button>
+        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-base" data-size="16">預設</button>
+        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-lg" data-size="18">大</button>
+        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-xl" data-size="21">超大</button>
+      </div>
+    </div>
+
+    <!-- 字型 -->
+    <div class="mb-7">
+      <p class="text-neutral-500 text-xs tracking-widest mb-3">字型</p>
+      <div class="flex flex-col gap-2">
+        <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="system">標準　<span class="text-neutral-500 text-sm">系統預設，最清晰</span></button>
+        <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="rounded" style="font-family:'Hiragino Maru Gothic ProN','Hiragino Maru Gothic Pro',sans-serif">圓體　<span class="text-neutral-500 text-sm" style="font-family:inherit">柔和圓潤</span></button>
+        <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="mono" style="font-family:monospace">等寬　<span class="text-neutral-500 text-sm" style="font-family:inherit">科技感</span></button>
+      </div>
+    </div>
   </section>
 
   <!-- 底部回主頁 -->
@@ -638,6 +690,107 @@ SCRIPTS.forEach(s => {
   });
   list.appendChild(li);
 });
+
+/* ============================================================
+   設定：主題 / 字體大小 / 字型
+   ============================================================ */
+
+const THEMES = {
+  black: { bg:'#0a0a0a', panel:'#141414', edge:'#1f1f1f', text:'#f5f5f5', muted:'#525252', label:'純黑' },
+  gray:  { bg:'#111827', panel:'#1f2937', edge:'#374151', text:'#f1f5f9', muted:'#94a3b8', label:'深灰' },
+  navy:  { bg:'#0a0f1e', panel:'#0f172a', edge:'#1e293b', text:'#e2e8f0', muted:'#94a3b8', label:'深藍' },
+  warm:  { bg:'#1c1007', panel:'#2c1a0a', edge:'#3d2510', text:'#fef3c7', muted:'#d97706', label:'暖棕' },
+  light: { bg:'#f0f0f0', panel:'#ffffff', edge:'#e0e0e0', text:'#111111', muted:'#555555', label:'淺色' },
+  white: { bg:'#ffffff', panel:'#f8f8f8', edge:'#e5e5e5', text:'#0a0a0a', muted:'#555555', label:'純白' },
+};
+
+const FONTS = {
+  system:  { family: '"Noto Sans TC", system-ui, sans-serif',                                         label: '標準' },
+  rounded: { family: '"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro",system-ui,sans-serif',   label: '圓體' },
+  mono:    { family: '"Courier New", Courier, monospace',                                              label: '等寬' },
+};
+
+const userSettings = {
+  theme: 'black', size: 16, font: 'system',
+
+  applyTheme(id) {
+    const t = THEMES[id] || THEMES.black;
+    const root = document.documentElement;
+    root.style.setProperty('--u-bg',    t.bg);
+    root.style.setProperty('--u-panel', t.panel);
+    root.style.setProperty('--u-edge',  t.edge);
+    root.style.setProperty('--u-text',  t.text);
+    root.style.setProperty('--u-muted', t.muted);
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', t.bg);
+    document.getElementById('theme-label').textContent = t.label;
+    document.querySelectorAll('.theme-swatch').forEach(b => {
+      b.style.outline = b.dataset.theme === id ? '2px solid #22d3ee' : '';
+      b.style.outlineOffset = b.dataset.theme === id ? '3px' : '';
+    });
+  },
+
+  applySize(px) {
+    document.documentElement.style.fontSize = px + 'px';
+    document.querySelectorAll('.fontsize-btn').forEach(b => {
+      b.classList.toggle('!border-shield/60', +b.dataset.size === px);
+      b.classList.toggle('text-shield',       +b.dataset.size === px);
+    });
+  },
+
+  applyFont(id) {
+    const f = FONTS[id] || FONTS.system;
+    document.body.style.fontFamily = f.family;
+    document.querySelectorAll('.font-btn').forEach(b => {
+      b.classList.toggle('!border-shield/60', b.dataset.font === id);
+      b.classList.toggle('text-shield',       b.dataset.font === id);
+    });
+  },
+
+  save() {
+    localStorage.setItem('shield_settings', JSON.stringify({ theme: this.theme, size: this.size, font: this.font }));
+  },
+
+  load() {
+    try {
+      const s = JSON.parse(localStorage.getItem('shield_settings') || '{}');
+      this.theme = s.theme || 'black';
+      this.size  = s.size  || 16;
+      this.font  = s.font  || 'system';
+    } catch(e) {}
+    this.applyTheme(this.theme);
+    this.applySize(this.size);
+    this.applyFont(this.font);
+  },
+};
+
+document.querySelectorAll('.theme-swatch').forEach(b => {
+  b.addEventListener('click', () => {
+    userSettings.theme = b.dataset.theme;
+    userSettings.applyTheme(b.dataset.theme);
+    userSettings.save();
+    if (navigator.vibrate) navigator.vibrate(8);
+  });
+});
+
+document.querySelectorAll('.fontsize-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    userSettings.size = +b.dataset.size;
+    userSettings.applySize(+b.dataset.size);
+    userSettings.save();
+    if (navigator.vibrate) navigator.vibrate(8);
+  });
+});
+
+document.querySelectorAll('.font-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    userSettings.font = b.dataset.font;
+    userSettings.applyFont(b.dataset.font);
+    userSettings.save();
+    if (navigator.vibrate) navigator.vibrate(8);
+  });
+});
+
+userSettings.load();
 
 /* ---------- PWA service worker（之後補 sw.js） ---------- */
 if ('serviceWorker' in navigator) {
