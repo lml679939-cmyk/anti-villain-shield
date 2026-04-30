@@ -21,6 +21,8 @@
           calm:   '#3b82f6',
           shield: '#22d3ee',
           warn:   '#f59e0b',
+          rage:   '#ef4444',
+          fire:   '#f97316',
         },
         fontFamily: {
           sans: ['"Noto Sans TC"', 'system-ui', 'sans-serif'],
@@ -29,617 +31,585 @@
     },
   };
 </script>
-<style id="user-theme">
-  /* 動態主題：由 JS 覆寫 */
-  :root {
-    --u-bg:    #0a0a0a;
-    --u-panel: #141414;
-    --u-edge:  #1f1f1f;
-    --u-text:  #f5f5f5;
-    --u-muted: #525252;
-  }
-  body        { background-color: var(--u-bg)    !important; color: var(--u-text) !important; }
-  .bg-panel   { background-color: var(--u-panel) !important; }
-  .bg-edge    { background-color: var(--u-edge)  !important; }
-  .border-edge { border-color:   var(--u-edge)   !important; }
-  .text-neutral-100, .text-neutral-200 { color: var(--u-text)  !important; }
-  .text-neutral-500, .text-neutral-600 { color: var(--u-muted) !important; }
-</style>
 <style>
   html, body { height: 100%; overscroll-behavior: none; }
-  body { -webkit-tap-highlight-color: transparent; }
+  body { background: #0a0a0a; color: #f5f5f5; -webkit-tap-highlight-color: transparent; }
   .screen { display: none; }
   .screen.active { display: flex; }
-  .btn-press:active { transform: scale(0.97); }
-  /* 呼吸圈動畫：吸 4 秒、停 7 秒、吐 8 秒 */
-  @keyframes breathe {
-    0%   { transform: scale(0.6); }
-    21%  { transform: scale(1.0); }   /* 吸氣 4s */
-    58%  { transform: scale(1.0); }   /* 屏息 7s */
-    100% { transform: scale(0.6); }   /* 吐氣 8s */
+  .btn-press:active { transform: scale(0.96); }
+
+  /* ── 「我現在很躁」pulse 動畫 ── */
+  @keyframes pulse-rage {
+    0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 0 40px -8px rgba(249,115,22,0.4); }
+    60%  { box-shadow: 0 0 0 18px rgba(239,68,68,0), 0 0 60px -8px rgba(249,115,22,0.2); }
+    100% { box-shadow: 0 0 0 0 rgba(239,68,68,0), 0 0 40px -8px rgba(249,115,22,0.4); }
   }
-  .breathe-orb { animation: breathe 19s ease-in-out infinite; }
+  .rage-pulse { animation: pulse-rage 2.2s ease-in-out infinite; }
 
-  /* 降溫模塊：計時器圓弧 */
-  .timer-ring { transition: stroke-dashoffset 1s linear; }
+  /* ── 呼吸圈 CSS transition 由 JS 驅動 ── */
+  #breathe-orb {
+    transform: scale(0.45);
+    transition: transform 4s ease-in-out;
+    will-change: transform;
+  }
 
-  /* 情緒溫度計按鈕：選中時亮起 */
-  .score-btn { transition: background 0.15s, transform 0.1s; }
-  .score-btn.selected { transform: scale(1.15); }
+  /* ── 溫度計 segment ── */
+  .thermo-seg {
+    transition: transform 0.12s, opacity 0.12s;
+    cursor: pointer;
+  }
+  .thermo-seg:active { transform: scaleY(0.92); }
+  .thermo-seg.active-seg {
+    transform: scaleY(1.25) !important;
+    outline: 2px solid rgba(255,255,255,0.9);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 
-  /* 技巧卡展開動畫 */
-  .technique-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-  .technique-card.open .technique-body { max-height: 200px; }
+  /* ── 圓形計時器 ── */
+  #timer-ring {
+    transition: stroke-dashoffset 1s linear;
+    stroke-linecap: round;
+  }
+
+  /* ── 舊的呼吸動畫（護盾按鈕流程保留） ── */
+  @keyframes breathe-old {
+    0%   { transform: scale(0.6); }
+    21%  { transform: scale(1.0); }
+    58%  { transform: scale(1.0); }
+    100% { transform: scale(0.6); }
+  }
+  .breathe-orb-old { animation: breathe-old 19s ease-in-out infinite; }
+
+  /* ── 完成閃爍 ── */
+  @keyframes done-flash {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+  .done-flash { animation: done-flash 0.6s ease-in-out 3; }
 </style>
 </head>
 <body class="font-sans select-none">
 
-<!-- 容器 -->
 <main id="app" class="min-h-screen flex flex-col">
 
-  <!-- 頂部列：極簡，只有 logo 與設定 -->
-  <header class="flex items-center justify-between px-5 pt-5 pb-3">
-    <div class="text-xs tracking-[0.3em] text-neutral-500">防小人護盾</div>
+  <!-- 頂部列 -->
+  <header class="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+    <div class="text-xs tracking-[0.3em] text-neutral-500">SHIELD · 護盾</div>
     <button data-go="settings" class="text-neutral-500 text-xl btn-press">⚙</button>
   </header>
 
-  <!-- ===== 畫面 1：主盾牌頁 ===== -->
-  <section id="screen-shield" class="screen active flex-1 flex-col items-center justify-center px-6">
-    <p class="text-neutral-400 text-sm mb-8">深呼吸。錢是你的，情緒也是你的。</p>
-    <button id="btn-shield"
-      class="btn-press w-64 h-64 rounded-full bg-gradient-to-br from-shield/30 to-calm/20
-             border border-shield/40 shadow-[0_0_60px_-10px_rgba(34,211,238,0.5)]
-             text-shield text-2xl tracking-widest font-light">
-      我現在很躁
-    </button>
-    <button data-go="translator"
-      class="mt-10 text-neutral-300 text-base underline underline-offset-4 decoration-neutral-700 btn-press">
-      直接翻譯氣話 →
-    </button>
-  </section>
+  <!-- ════════════════════════════════════════
+       畫面 1：主盾牌頁
+  ════════════════════════════════════════ -->
+  <section id="screen-shield" class="screen active flex-1 flex-col items-center justify-between px-6 pb-8">
 
-  <!-- ===== 畫面 2：降溫模塊 ===== -->
-  <section id="screen-cool" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
-
-    <!-- Step A：情緒溫度計 -->
-    <div id="cool-step-score">
-      <h2 class="text-xl mt-2 mb-1">現在幾分燙？</h2>
-      <p class="text-neutral-500 text-sm mb-5">1 = 有點煩　10 = 快爆炸</p>
-      <div class="grid grid-cols-5 gap-2 mb-3">
-        <!-- JS 動態生成 -->
-      </div>
-      <div id="cool-score-hint" class="text-neutral-600 text-sm text-center mt-2">點一個數字</div>
+    <!-- 上半：護盾按鈕 -->
+    <div class="flex-1 flex flex-col items-center justify-center">
+      <p class="text-neutral-400 text-sm mb-8">深呼吸。錢是你的，情緒也是你的。</p>
+      <button id="btn-shield"
+        class="btn-press w-56 h-56 rounded-full bg-gradient-to-br from-shield/30 to-calm/20
+               border border-shield/40 shadow-[0_0_60px_-10px_rgba(34,211,238,0.5)]
+               text-shield text-2xl tracking-widest font-light">
+        啟動護盾
+      </button>
+      <button data-go="translator"
+        class="mt-8 text-neutral-400 text-sm underline underline-offset-4 decoration-neutral-700 btn-press">
+        直接翻譯氣話 →
+      </button>
     </div>
 
-    <!-- Step B：技巧 + 計時器（選完分數才顯示） -->
-    <div id="cool-step-action" class="hidden mt-6">
-
-      <div id="cool-heat-label" class="text-sm text-neutral-400 mb-4"></div>
-
-      <!-- 技巧卡列表（JS 動態注入） -->
-      <div id="cool-techniques-list" class="space-y-3 mb-6"></div>
-
-      <!-- 暫停計時器 -->
-      <div class="rounded-2xl bg-panel border border-edge p-5">
-        <p class="text-neutral-400 text-sm mb-3">先暫停，給自己幾秒不回應</p>
-
-        <!-- 秒數選擇 -->
-        <div class="flex gap-2 mb-5">
-          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="60">60秒</button>
-          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="90">90秒</button>
-          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="120">2分鐘</button>
-          <button class="timer-dur-btn flex-1 py-2 rounded-xl bg-edge text-neutral-300 text-sm btn-press" data-sec="180">3分鐘</button>
-        </div>
-
-        <!-- 圓弧計時器 -->
-        <div class="flex flex-col items-center">
-          <div class="relative w-36 h-36">
-            <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="52" fill="none" stroke="#1f1f1f" stroke-width="8"/>
-              <circle id="timer-arc" cx="60" cy="60" r="52" fill="none"
-                stroke="#22d3ee" stroke-width="8" stroke-linecap="round"
-                stroke-dasharray="326.7" stroke-dashoffset="0"
-                class="timer-ring"/>
-            </svg>
-            <div id="timer-display" class="absolute inset-0 flex flex-col items-center justify-center">
-              <span id="timer-number" class="text-3xl text-shield font-light">60</span>
-              <span class="text-neutral-600 text-xs">秒</span>
-            </div>
-          </div>
-
-          <button id="btn-timer-start"
-            class="mt-5 px-10 py-3 rounded-full bg-shield/20 border border-shield/40 text-shield btn-press">
-            開始
-          </button>
-          <div id="timer-done-msg" class="hidden mt-4 text-neutral-300 text-sm text-center">
-            好了。深一口氣，你可以繼續了。
-          </div>
-        </div>
-      </div>
-
+    <!-- 下半：緊急大按鈕 -->
+    <div class="w-full">
+      <p class="text-center text-neutral-600 text-xs mb-3 tracking-widest">— 情緒緊急出口 —</p>
+      <button id="btn-rage"
+        class="rage-pulse btn-press w-full py-6 rounded-2xl
+               bg-gradient-to-r from-red-600 via-orange-500 to-red-500
+               text-white text-2xl font-bold tracking-widest
+               border border-red-400/30">
+        我現在很躁
+      </button>
     </div>
   </section>
 
-  <!-- ===== 畫面 3：呼吸頁 ===== -->
+  <!-- ════════════════════════════════════════
+       畫面 2：情緒溫度計
+  ════════════════════════════════════════ -->
+  <section id="screen-rage" class="screen flex-1 flex-col px-6 pb-8">
+
+    <div class="mt-4 mb-6">
+      <h2 class="text-2xl font-bold text-white">現在幾分躁？</h2>
+      <p class="text-neutral-500 text-sm mt-1">按下你的感受，1 最輕、10 最爆</p>
+    </div>
+
+    <!-- 溫度計主體 -->
+    <div class="relative">
+      <!-- 分數大顯示 -->
+      <div id="rage-score-display" class="text-center mb-6">
+        <span id="rage-score-num" class="text-8xl font-black text-neutral-700">?</span>
+        <span id="rage-score-label" class="block text-neutral-600 text-sm mt-1">點選下方選擇</span>
+      </div>
+
+      <!-- 水平漸層條 + 10 格 -->
+      <div class="relative h-16 rounded-2xl overflow-hidden mb-4"
+           style="background: linear-gradient(to right, #22c55e, #84cc16, #eab308, #f97316, #ef4444);">
+        <div id="thermo-bar" class="absolute inset-0 flex">
+          <!-- 10 格由 JS 生成 -->
+        </div>
+      </div>
+
+      <!-- 數字標籤 -->
+      <div class="flex justify-between px-1 text-neutral-500 text-xs mb-8">
+        <span>1 輕微</span>
+        <span>5 中等</span>
+        <span>10 爆炸</span>
+      </div>
+    </div>
+
+    <!-- 推薦 + 開始按鈕（選完才出現） -->
+    <div id="calm-start-section" class="hidden flex-col items-center gap-4">
+      <div class="w-full p-4 rounded-2xl bg-panel border border-edge text-center">
+        <p class="text-neutral-400 text-sm">推薦冷靜時長</p>
+        <p id="recommend-text" class="text-3xl font-bold text-shield mt-1">90 秒</p>
+        <p id="recommend-reason" class="text-neutral-600 text-xs mt-1">穩住，慢慢來</p>
+      </div>
+      <button id="btn-start-calm"
+        class="btn-press w-full py-5 rounded-2xl
+               bg-gradient-to-r from-blue-600 to-cyan-500
+               text-white text-xl font-bold tracking-widest
+               shadow-[0_0_30px_-5px_rgba(34,211,238,0.5)]">
+        開始冷靜
+      </button>
+    </div>
+
+    <button data-go="shield" class="mt-auto pt-4 text-neutral-600 text-sm btn-press self-center">← 返回</button>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       畫面 3：呼吸 + 圓形倒數
+  ════════════════════════════════════════ -->
+  <section id="screen-calm" class="screen flex-1 flex-col items-center justify-between px-6 pb-8">
+
+    <div class="mt-4 text-center">
+      <p id="calm-phase-label"
+         class="text-2xl font-bold tracking-[0.2em] text-shield h-9 transition-all duration-300">
+        準備
+      </p>
+      <p class="text-neutral-600 text-xs mt-1">吸 4 · 停 7 · 吐 8</p>
+    </div>
+
+    <!-- 呼吸圈 -->
+    <div class="relative flex items-center justify-center"
+         style="width: 260px; height: 260px;">
+      <!-- 背景光暈 -->
+      <div class="absolute inset-0 rounded-full bg-calm/5"></div>
+      <!-- 呼吸球 -->
+      <div id="breathe-orb"
+           class="w-full h-full rounded-full
+                  bg-gradient-to-br from-calm/50 via-shield/30 to-cyan-400/20
+                  border border-shield/20
+                  shadow-[0_0_60px_-10px_rgba(34,211,238,0.6)]">
+      </div>
+      <!-- 中心文字（相位） -->
+      <div id="calm-center-text"
+           class="absolute text-shield/70 text-sm tracking-widest font-light">
+      </div>
+    </div>
+
+    <!-- 圓形倒數計時器 -->
+    <div class="relative flex items-center justify-center" style="width: 140px; height: 140px;">
+      <svg width="140" height="140" class="-rotate-90 absolute inset-0" aria-hidden="true">
+        <defs>
+          <linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#22d3ee"/>
+          </linearGradient>
+        </defs>
+        <!-- 背景圓 -->
+        <circle cx="70" cy="70" r="58"
+          stroke="#1f1f1f" stroke-width="7" fill="none"/>
+        <!-- 進度圓 -->
+        <circle id="timer-ring" cx="70" cy="70" r="58"
+          stroke="url(#timerGrad)" stroke-width="7" fill="none"
+          stroke-dasharray="364" stroke-dashoffset="0"/>
+      </svg>
+      <div class="relative text-center z-10">
+        <span id="timer-num" class="text-4xl font-black text-white tabular-nums">90</span>
+        <span class="block text-neutral-600 text-xs mt-0.5">秒</span>
+      </div>
+    </div>
+
+    <div class="w-full space-y-3">
+      <button id="btn-calm-done"
+        class="btn-press w-full py-4 rounded-2xl bg-edge text-neutral-200 text-base tracking-wide">
+        我冷靜了，下一步 →
+      </button>
+      <button id="btn-calm-back" data-go="rage"
+        class="btn-press w-full py-3 rounded-xl text-neutral-600 text-sm btn-press">
+        ← 重新選擇
+      </button>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       畫面 4：呼吸（護盾按鈕流程，保留舊版）
+  ════════════════════════════════════════ -->
   <section id="screen-breathe" class="screen flex-1 flex-col items-center justify-center px-6">
     <div class="relative w-72 h-72 flex items-center justify-center">
       <div class="absolute w-full h-full rounded-full bg-calm/10"></div>
-      <div class="breathe-orb w-full h-full rounded-full bg-gradient-to-br from-calm/40 to-shield/30 border border-shield/30"></div>
+      <div class="breathe-orb-old w-full h-full rounded-full bg-gradient-to-br from-calm/40 to-shield/30 border border-shield/30"></div>
       <div id="breathe-label" class="absolute text-shield text-xl tracking-widest">準備</div>
     </div>
     <p class="mt-10 text-neutral-400 text-sm">跟著圈圈：吸 4 · 停 7 · 吐 8</p>
     <button data-go="translator"
       class="mt-8 px-8 py-3 rounded-full bg-edge text-neutral-200 btn-press">我冷靜了，下一步</button>
-    <button data-go="cool"
-      class="mt-3 text-neutral-600 text-sm btn-press underline underline-offset-4 decoration-neutral-800">← 回到燙度評估</button>
   </section>
 
-  <!-- ===== 畫面 3：禮貌化回應生成器 ===== -->
-  <section id="screen-translator" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
-    <h2 class="text-xl mt-2 mb-1">禮貌化回應生成器</h2>
-    <p class="text-neutral-500 text-sm mb-4">說說發生什麼事，我幫你把想說的話包得有界線。</p>
+  <!-- ════════════════════════════════════════
+       畫面 5：翻譯機
+  ════════════════════════════════════════ -->
+  <section id="screen-translator" class="screen flex-1 flex-col px-6 pb-8">
+    <h2 class="text-xl mt-2 mb-1">氣話翻譯機</h2>
+    <p class="text-neutral-500 text-sm mb-4">把想罵的丟進來，我幫你包成有界線的版本。</p>
 
-    <!-- 快速情境 chip -->
-    <div class="flex gap-2 overflow-x-auto pb-2 mb-4" style="-webkit-overflow-scrolling:touch">
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="blame_shift">鍋甩給我</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="attitude">態度差/酸</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="unfair_load">工作分配不公</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="supervisor_pressure">主管施壓</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="passive_aggressive">冷嘲熱諷</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="repeat_nag">同件事一直盧</button>
-    </div>
-
-    <!-- 輸入區 -->
-    <textarea id="rant-input" rows="4"
-      placeholder="例：組員把自己沒做的部分全推給我，還說是我沒溝通清楚..."
-      class="w-full bg-panel border border-edge rounded-2xl p-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-shield/50 text-sm"></textarea>
+    <textarea id="rant-input" rows="5"
+      placeholder="例：你他X的奧客，這價錢還想殺..."
+      class="w-full bg-panel border border-edge rounded-2xl p-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-shield/50"></textarea>
 
     <div class="flex gap-3 mt-3">
-      <button id="btn-voice" class="flex-none px-5 py-3 rounded-xl bg-edge text-neutral-200 btn-press">🎙</button>
-      <button id="btn-generate" class="flex-1 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield btn-press font-medium">生成 3 種回應</button>
+      <button id="btn-voice" class="flex-1 py-3 rounded-xl bg-edge text-neutral-200 btn-press">🎙 語音</button>
+      <button id="btn-translate" class="flex-1 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield btn-press">轉換</button>
     </div>
 
-    <!-- 三種回應卡 -->
-    <div id="response-cards" class="mt-5 space-y-3 hidden">
-
-      <div class="response-card rounded-2xl bg-panel border border-emerald-900/60 overflow-hidden">
-        <div class="flex items-center gap-2 px-4 pt-4 pb-2">
-          <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-700/50">安全中性</span>
-          <span class="text-neutral-600 text-xs">灰岩法・最短最無聊</span>
-        </div>
-        <p id="resp-gray" class="px-4 pb-3 text-neutral-100 text-base leading-relaxed"></p>
-        <button class="copy-resp w-full py-2 text-neutral-500 text-xs border-t border-emerald-900/40 btn-press active:bg-emerald-900/20">複製</button>
-      </div>
-
-      <div class="response-card rounded-2xl bg-panel border border-calm/30 overflow-hidden">
-        <div class="flex items-center gap-2 px-4 pt-4 pb-2">
-          <span class="text-xs px-2 py-0.5 rounded-full bg-calm/20 text-calm border border-calm/30">禮貌堅定</span>
-          <span class="text-neutral-600 text-xs">I statement・有禮有節</span>
-        </div>
-        <p id="resp-firm" class="px-4 pb-3 text-neutral-100 text-base leading-relaxed"></p>
-        <button class="copy-resp w-full py-2 text-neutral-500 text-xs border-t border-calm/20 btn-press active:bg-calm/10">複製</button>
-      </div>
-
-      <div class="response-card rounded-2xl bg-panel border border-warn/30 overflow-hidden">
-        <div class="flex items-center gap-2 px-4 pt-4 pb-2">
-          <span class="text-xs px-2 py-0.5 rounded-full bg-warn/20 text-warn border border-warn/30">設定界線</span>
-          <span class="text-neutral-600 text-xs">適合重複發生時</span>
-        </div>
-        <p id="resp-boundary" class="px-4 pb-3 text-neutral-100 text-base leading-relaxed"></p>
-        <button class="copy-resp w-full py-2 text-neutral-500 text-xs border-t border-warn/20 btn-press active:bg-warn/10">複製</button>
-      </div>
-
+    <div id="translated-output"
+      class="mt-5 p-4 rounded-2xl bg-panel border border-edge text-neutral-200 min-h-[6rem] text-base leading-relaxed">
+      <span class="text-neutral-600">輸出會顯示在這裡。</span>
     </div>
 
-    <!-- LLM 接口預留 -->
-    <div class="mt-4 flex items-center gap-2">
-      <div class="flex-1 h-px bg-edge"></div>
-      <span class="text-neutral-700 text-xs">或</span>
-      <div class="flex-1 h-px bg-edge"></div>
-    </div>
-    <button id="btn-llm" disabled
-      class="mt-3 w-full py-3 rounded-xl bg-edge/50 border border-neutral-800 text-neutral-700 text-sm">
-      ✦ AI 真實生成（設定 > 填入 API Key 後啟用）
-    </button>
-  </section>
-
-
-
-  <!-- ===== 畫面 5：設定 ===== -->
-  <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
-    <h2 class="text-xl mt-2 mb-6">設定</h2>
-
-    <!-- 背景主題 -->
-    <div class="mb-7">
-      <p class="text-neutral-500 text-xs tracking-widest mb-3">背景顏色</p>
-      <div class="flex gap-3 flex-wrap">
-        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="black"  style="background:#0a0a0a;outline:2px solid #444;outline-offset:2px"></button>
-        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="gray"   style="background:#1f2937"></button>
-        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="navy"   style="background:#0a0f1e"></button>
-        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="warm"   style="background:#1c1007"></button>
-        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="light"  style="background:#f0f0f0"></button>
-        <button class="theme-swatch w-12 h-12 rounded-full border-2 border-transparent btn-press" data-theme="white"  style="background:#ffffff;outline:1px solid #ccc;outline-offset:2px"></button>
-      </div>
-      <p id="theme-label" class="text-neutral-600 text-xs mt-2"></p>
-    </div>
-
-    <!-- 字體大小 -->
-    <div class="mb-7">
-      <p class="text-neutral-500 text-xs tracking-widest mb-3">字體大小</p>
-      <div class="flex gap-2">
-        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-sm" data-size="14">小</button>
-        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-base" data-size="16">預設</button>
-        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-lg" data-size="18">大</button>
-        <button class="fontsize-btn flex-1 py-3 rounded-xl bg-edge btn-press text-xl" data-size="21">超大</button>
-      </div>
-    </div>
-
-    <!-- 字型 -->
-    <div class="mb-7">
-      <p class="text-neutral-500 text-xs tracking-widest mb-3">字型</p>
-      <div class="flex flex-col gap-2">
-        <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="system">標準　<span class="text-neutral-500 text-sm">系統預設，最清晰</span></button>
-        <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="rounded" style="font-family:'Hiragino Maru Gothic ProN','Hiragino Maru Gothic Pro',sans-serif">圓體　<span class="text-neutral-500 text-sm" style="font-family:inherit">柔和圓潤</span></button>
-        <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="mono" style="font-family:monospace">等寬　<span class="text-neutral-500 text-sm" style="font-family:inherit">科技感</span></button>
-      </div>
-    </div>
-
-    <!-- AI API Key -->
-    <div class="mb-4">
-      <p class="text-neutral-500 text-xs tracking-widest mb-1">AI 真實生成（選填）</p>
-      <p class="text-neutral-600 text-xs mb-3">填入後「禮貌化回應生成器」的 AI 按鈕會啟用，由 Claude 根據你描述的情況即時生成回應。Key 只存在你的手機，不會上傳。</p>
-      <div class="flex gap-2">
-        <input id="api-key-input" type="password" placeholder="sk-ant-..." spellcheck="false"
-          class="flex-1 bg-panel border border-edge rounded-xl px-4 py-3 text-neutral-200 placeholder:text-neutral-700 text-sm focus:outline-none focus:border-shield/50" />
-        <button id="btn-save-key" class="px-4 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield text-sm btn-press">儲存</button>
-      </div>
-      <p id="api-key-status" class="text-xs mt-2 text-neutral-600"></p>
-      <button id="btn-clear-key" class="mt-2 text-xs text-neutral-700 underline btn-press hidden">清除 Key</button>
+    <div class="flex gap-3 mt-3">
+      <button id="btn-copy" class="flex-1 py-3 rounded-xl bg-edge text-neutral-300 btn-press">複製</button>
+      <button data-go="scripts" class="flex-1 py-3 rounded-xl bg-edge text-neutral-300 btn-press">話術庫</button>
     </div>
   </section>
 
-  <!-- 底部回主頁 -->
-  <nav class="px-6 py-4 flex justify-center">
+  <!-- ════════════════════════════════════════
+       畫面 6：話術庫
+  ════════════════════════════════════════ -->
+  <section id="screen-scripts" class="screen flex-1 flex-col px-6 pb-8">
+    <h2 class="text-xl mt-2 mb-4">萬用話術</h2>
+    <ul id="scripts-list" class="space-y-3"></ul>
+  </section>
+
+  <!-- ════════════════════════════════════════
+       畫面 7：設定
+  ════════════════════════════════════════ -->
+  <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8">
+    <h2 class="text-xl mt-2 mb-4">設定</h2>
+    <p class="text-neutral-500 text-sm">P1 階段加：震動、語音、字級、自訂話術。</p>
+  </section>
+
+  <!-- 底部導覽（rage / calm 不顯示） -->
+  <nav id="bottom-nav" class="px-6 py-4 flex justify-center">
     <button data-go="shield" class="text-neutral-500 text-sm tracking-widest btn-press">⌂ 回護盾</button>
   </nav>
 </main>
 
 <script>
-/* ---------- 路由 ---------- */
-const screens = ['shield', 'cool', 'breathe', 'translator', 'settings'];
+/* ════════════════════════════════════════════
+   路由
+════════════════════════════════════════════ */
+const ALL_SCREENS = ['shield','rage','calm','breathe','translator','scripts','settings'];
+const HIDE_NAV = new Set(['rage','calm']);
+
 function go(name) {
-  screens.forEach(s => {
-    const el = document.getElementById('screen-' + s);
-    if (el) el.classList.toggle('active', s === name);
+  ALL_SCREENS.forEach(s => {
+    document.getElementById('screen-' + s).classList.toggle('active', s === name);
   });
+  document.getElementById('bottom-nav').style.display = HIDE_NAV.has(name) ? 'none' : '';
   if (navigator.vibrate) navigator.vibrate(8);
   window.scrollTo(0, 0);
 }
+
 document.querySelectorAll('[data-go]').forEach(b =>
   b.addEventListener('click', () => go(b.dataset.go))
 );
 
-/* ---------- 主盾牌：啟動 → 降溫模塊 ---------- */
+/* ════════════════════════════════════════════
+   主護盾按鈕 → 舊版呼吸頁
+════════════════════════════════════════════ */
 document.getElementById('btn-shield').addEventListener('click', () => {
-  if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
-  resetCool();
-  go('cool');
+  if (navigator.vibrate) navigator.vibrate([30,40,30]);
+  go('breathe');
+  startBreatheLabelOld();
 });
 
-/* ============================================================
-   降溫模塊
-   ============================================================ */
-
-/* 技巧資料庫 */
-const TECHNIQUES = {
-  breathe: {
-    icon: '🌬️', title: '4-7-8 呼吸',
-    body: '吸 4 秒 → 屏息 7 秒 → 吐氣 8 秒。做兩輪，副交感神經強制介入，心跳會降下來。',
-    action: { label: '進入呼吸引導', cb: () => { go('breathe'); startBreatheLabel(); } },
-  },
-  fist: {
-    icon: '✊', title: '握拳釋放',
-    body: '雙手用力握緊拳頭，數 5 秒，然後瞬間完全放開。重複 3 次。把累積的火氣從手指排出去。',
-  },
-  grayrock: {
-    icon: '🪨', title: '灰岩法',
-    body: '你現在是一塊無聊的石頭。只給最短回應：「喔」「好」「沒辦法」。不解釋、不爭辯、不給能量。對方想引爆你，你就讓他撞牆。',
-  },
-  reframe_high: {
-    icon: '💡', title: '認知重構',
-    body: '她的爛心情不是你造成的，也不是你能修的。你的工作是賣東西，不是處理別人的情緒問題。',
-  },
-  reframe_mid: {
-    icon: '💰', title: '認知重構',
-    body: '這 2 分鐘的火，不值得賠上今晚的收入和明天的心情。錢比較重要，氣等一下再生。',
-  },
-  reframe_low: {
-    icon: '🧠', title: '認知重構',
-    body: '擺攤是來賺錢的，不是來贏辯論的。這個人離開之後你不會再見到他，不需要讓他佔據你的腦子。',
-  },
-  ground: {
-    icon: '👁️', title: '感官接地',
-    body: '環顧四周，說出你看到的 3 樣東西。把注意力從那個人身上拉回現實環境。',
-  },
-};
-
-/* 依燙度決定顯示哪些技巧 */
-function getTechniquesForScore(score) {
-  if (score >= 8) return ['breathe', 'fist', 'grayrock', 'reframe_high', 'ground'];
-  if (score >= 5) return ['fist', 'grayrock', 'reframe_mid', 'breathe'];
-  return ['reframe_low', 'grayrock', 'reframe_mid'];
-}
-
-/* 燙度對應文字 */
-function heatLabel(score) {
-  if (score >= 8) return `燙度 ${score}/10　—　先讓身體冷靜，再想後續`;
-  if (score >= 5) return `燙度 ${score}/10　—　有點熱，用技巧把火壓下去`;
-  return `燙度 ${score}/10　—　你還撐得住，把姿態保住`;
-}
-
-/* 燙度按鈕顏色 */
-function scoreColor(n) {
-  if (n <= 3) return { bg: 'bg-emerald-900/60', border: 'border-emerald-500/60', text: 'text-emerald-300', sel: 'bg-emerald-600' };
-  if (n <= 6) return { bg: 'bg-amber-900/60',   border: 'border-amber-500/60',   text: 'text-amber-300',   sel: 'bg-amber-500'  };
-  return             { bg: 'bg-red-900/60',      border: 'border-red-500/60',     text: 'text-red-300',     sel: 'bg-red-600'    };
-}
-
-/* 建立分數按鈕 */
-(function buildScoreButtons() {
-  const grid = document.querySelector('#cool-step-score .grid');
-  for (let n = 1; n <= 10; n++) {
-    const c = scoreColor(n);
-    const btn = document.createElement('button');
-    btn.className = `score-btn py-4 rounded-2xl ${c.bg} border ${c.border} ${c.text} text-xl font-light btn-press`;
-    btn.textContent = n;
-    btn.dataset.score = n;
-    btn.addEventListener('click', () => onScoreSelected(n));
-    grid.appendChild(btn);
-  }
-})();
-
-function onScoreSelected(score) {
-  /* 按鈕視覺 */
-  document.querySelectorAll('.score-btn').forEach(b => {
-    const n = +b.dataset.score;
-    const c = scoreColor(n);
-    b.classList.remove('selected', 'bg-emerald-600', 'bg-amber-500', 'bg-red-600');
-    b.className = `score-btn py-4 rounded-2xl ${c.bg} border ${c.border} ${c.text} text-xl font-light btn-press`;
-    if (n === score) {
-      b.classList.add('selected', scoreColor(n).sel.split(' ')[0]);
-    }
-  });
-  document.getElementById('cool-score-hint').textContent = `${score} 分`;
-
-  /* 顯示技巧區 */
-  document.getElementById('cool-heat-label').textContent = heatLabel(score);
-  buildTechniqueCards(getTechniquesForScore(score));
-  document.getElementById('cool-step-action').classList.remove('hidden');
-
-  if (navigator.vibrate) navigator.vibrate(12);
-  setTimeout(() => document.getElementById('cool-step-action').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
-}
-
-/* 建立技巧卡 */
-function buildTechniqueCards(keys) {
-  const list = document.getElementById('cool-techniques-list');
-  list.innerHTML = '';
-  keys.forEach((key, i) => {
-    const t = TECHNIQUES[key];
-    if (!t) return;
-    const card = document.createElement('div');
-    card.className = 'technique-card rounded-2xl bg-panel border border-edge overflow-hidden';
-    card.innerHTML = `
-      <button class="technique-toggle w-full flex items-center gap-3 px-4 py-4 btn-press text-left">
-        <span class="text-2xl">${t.icon}</span>
-        <span class="flex-1 text-neutral-100">${t.title}</span>
-        <span class="technique-arrow text-neutral-600 text-sm transition-transform">▼</span>
-      </button>
-      <div class="technique-body px-4 pb-0">
-        <p class="text-neutral-400 text-sm leading-relaxed pb-4">${t.body}</p>
-        ${t.action ? `<button class="technique-action mb-4 px-5 py-2 rounded-full bg-shield/20 border border-shield/40 text-shield text-sm btn-press">${t.action.label}</button>` : ''}
-      </div>`;
-
-    /* 預設第一張展開 */
-    if (i === 0) {
-      card.classList.add('open');
-      card.querySelector('.technique-arrow').style.transform = 'rotate(180deg)';
-    }
-
-    card.querySelector('.technique-toggle').addEventListener('click', () => {
-      const isOpen = card.classList.toggle('open');
-      card.querySelector('.technique-arrow').style.transform = isOpen ? 'rotate(180deg)' : '';
-    });
-
-    if (t.action) {
-      card.querySelector('.technique-action').addEventListener('click', t.action.cb);
-    }
-
-    list.appendChild(card);
-  });
-}
-
-/* ---- 計時器 ---- */
-let timerTotal = 60, timerLeft = 60, timerInterval = null, timerRunning = false;
-const CIRCUMFERENCE = 2 * Math.PI * 52; // 326.7
-
-function setTimerDuration(sec) {
-  clearTimerInterval();
-  timerTotal = timerLeft = sec;
-  timerRunning = false;
-  updateTimerDisplay();
-  document.getElementById('timer-done-msg').classList.add('hidden');
-  document.getElementById('btn-timer-start').textContent = '開始';
-  document.querySelectorAll('.timer-dur-btn').forEach(b => {
-    b.classList.toggle('!border-shield/60', +b.dataset.sec === sec);
-    b.classList.toggle('text-shield', +b.dataset.sec === sec);
-  });
-}
-
-function updateTimerDisplay() {
-  document.getElementById('timer-number').textContent = timerLeft;
-  const offset = CIRCUMFERENCE * (1 - timerLeft / timerTotal);
-  document.getElementById('timer-arc').style.strokeDashoffset = offset;
-}
-
-function clearTimerInterval() {
-  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-}
-
-document.querySelectorAll('.timer-dur-btn').forEach(b =>
-  b.addEventListener('click', () => setTimerDuration(+b.dataset.sec))
-);
-
-document.getElementById('btn-timer-start').addEventListener('click', () => {
-  if (timerRunning) {
-    clearTimerInterval();
-    timerRunning = false;
-    document.getElementById('btn-timer-start').textContent = '繼續';
-  } else {
-    if (timerLeft <= 0) setTimerDuration(timerTotal);
-    timerRunning = true;
-    document.getElementById('btn-timer-start').textContent = '暫停';
-    timerInterval = setInterval(() => {
-      timerLeft--;
-      updateTimerDisplay();
-      if (timerLeft <= 0) {
-        clearTimerInterval();
-        timerRunning = false;
-        document.getElementById('btn-timer-start').textContent = '重來';
-        document.getElementById('timer-done-msg').classList.remove('hidden');
-        if (navigator.vibrate) navigator.vibrate([100, 80, 100, 80, 200]);
-      }
-    }, 1000);
-  }
-});
-
-/* 重置降溫模塊狀態（每次進入時呼叫） */
-function resetCool() {
-  document.querySelectorAll('.score-btn').forEach(b => {
-    const n = +b.dataset.score;
-    const c = scoreColor(n);
-    b.className = `score-btn py-4 rounded-2xl ${c.bg} border ${c.border} ${c.text} text-xl font-light btn-press`;
-    b.classList.remove('selected');
-  });
-  document.getElementById('cool-score-hint').textContent = '點一個數字';
-  document.getElementById('cool-step-action').classList.add('hidden');
-  setTimerDuration(60);
-}
-
-/* ---------- 呼吸文字輪播（與 CSS 動畫對齊：4 / 7 / 8 秒） ---------- */
-let breatheTimer = null;
-function startBreatheLabel() {
+let breatheTimerOld = null;
+function startBreatheLabelOld() {
   const label = document.getElementById('breathe-label');
   const cycle = [['吸', 4000], ['停', 7000], ['吐', 8000]];
   let i = 0;
-  clearInterval(breatheTimer);
-  const tick = () => {
+  clearTimeout(breatheTimerOld);
+  function tick() {
     label.textContent = cycle[i][0];
-    breatheTimer = setTimeout(() => { i = (i + 1) % 3; tick(); }, cycle[i][1]);
-  };
+    breatheTimerOld = setTimeout(() => { i = (i + 1) % 3; tick(); }, cycle[i][1]);
+  }
   tick();
 }
 
-/* ============================================================
-   禮貌化回應生成器
-   每個情境有 3 種回應：gray（安全中性）/ firm（禮貌堅定）/ boundary（設定界線）
-   keywords 用來偵測自由輸入文字；chip data-scenario 直接對應 id
-   ============================================================ */
+/* ════════════════════════════════════════════
+   「我現在很躁」→ 溫度計頁
+════════════════════════════════════════════ */
+document.getElementById('btn-rage').addEventListener('click', () => {
+  if (navigator.vibrate) navigator.vibrate([20,30,20]);
+  go('rage');
+  resetRageScreen();
+});
 
-const SITUATION_DB = {
-  blame_shift: {
-    keywords: /推給我|怪我|我的問題|我的責任|害我|都是我|我錯了|沒溝通|沒做好|甩鍋|推卸/,
-    gray:     '我知道了。',
-    firm:     '我理解你有這樣的感受，但就我所知道的情況，這件事的來龍去脈是這樣的：[說明事實]。我想我們對這件事的理解不太一樣。',
-    boundary: '這件事我的部分我已經做了，責任的歸屬我有自己的判斷。如果你有不同看法，我們可以各自說清楚，但我不會接受這樣的定論。',
-  },
-  attitude: {
-    keywords: /態度|語氣|口氣|公主|兇|嗆|怎麼跟我說話|好像欠她|看不起|瞧不起|高人一等|不尊重/,
-    gray:     '嗯。',
-    firm:     '我覺得我們溝通的方式可以更順暢一點。我想好好把事情講清楚，但需要在比較平等的狀態下談。',
-    boundary: '我願意繼續討論這件事，但前提是互相尊重。這樣的說話方式讓我很難繼續溝通，希望你能理解。',
-  },
-  unfair_load: {
-    keywords: /我做比較多|分配不公|都是我在|他沒做|她沒貢獻|份量不均|憑什麼我|白做|出工|不公平/,
-    gray:     '我記住了。',
-    firm:     '我想提一下工作分配的問題。我目前負責的部分比當初討論的多，我希望我們可以重新確認一下每個人的範圍。',
-    boundary: '我做這個沒問題，但我需要這件事被看見。如果分工一直是這樣的狀態，我之後會需要調整我能承擔的範圍。',
-  },
-  supervisor_pressure: {
-    keywords: /主管|老闆|上司|長官|叫我|要我|命令|交代|不合理|壓力|Deadline|截止|為什麼是我|加班/,
-    gray:     '好，我知道了。',
-    firm:     '我會盡力配合，但我想先確認一下這個需求的優先順序，因為目前手上還有其他事情在跑，想確保都能做好。',
-    boundary: '這個我可以做，但我需要說明一下目前的狀況：[說明現況]。如果這是最優先的，我會需要調整其他事項的時程，可以再確認嗎？',
-  },
-  passive_aggressive: {
-    keywords: /酸|諷刺|話中有話|陰陽怪氣|不是針對你|只是說說|沒什麼意思|大家都知道|聽說|暗示/,
-    gray:     '嗯，謝謝你告訴我。',
-    firm:     '我聽到你說的，但我不太確定你的意思是什麼。如果你有什麼想直接說的，我很樂意聽。',
-    boundary: '我不太習慣這種方式溝通。如果你對我有什麼意見或不滿，我希望你可以直接說，這樣對大家都比較好。',
-  },
-  repeat_nag: {
-    keywords: /又來|一直|還是|繞回來|說了幾次|講幾遍|重複|一樣的話|又提|沒完|還在|怎麼還/,
-    gray:     '就這樣。',
-    firm:     '這件事我們已經討論過了，我的想法跟上次一樣。如果有新的資訊或角度，我很願意再聊，但目前的立場不會變。',
-    boundary: '這件事我的答案不會變了。我理解你還有想法，但反覆討論同一件事對我們都是消耗，我想把這個話題到這裡結束。',
-  },
+/* ── 溫度計：生成 10 格 ── */
+const THERMO_COLORS = [
+  '#22c55e','#4ade80','#84cc16','#bef264',
+  '#fde047','#fbbf24','#fb923c','#f97316',
+  '#ef4444','#dc2626',
+];
+const THERMO_LABELS = {
+  1:'還好',2:'有點煩',3:'頗煩',4:'很煩',5:'很躁',
+  6:'快爆了',7:'快爆了',8:'非常爆',9:'極限',10:'已爆炸',
 };
 
-const FALLBACK = {
-  gray:     '我知道了。',
-  firm:     '我理解你的想法。這件事我有自己的判斷，我們對這個問題可能有不同的看法。',
-  boundary: '我的立場已經很清楚了。如果你有新的想法我很願意聽，但這件事我的回答不會改變。',
-};
+let selectedRage = 0;
+let calmDuration  = 90;
 
-function detectSituation(text) {
-  for (const [id, sit] of Object.entries(SITUATION_DB)) {
-    if (sit.keywords.test(text)) return sit;
+const thermoBar = document.getElementById('thermo-bar');
+for (let i = 1; i <= 10; i++) {
+  const seg = document.createElement('button');
+  seg.className = 'thermo-seg flex-1 h-full flex items-end justify-center pb-1';
+  seg.style.background = 'transparent';
+  seg.innerHTML = `<span class="text-[10px] font-bold text-black/70">${i}</span>`;
+  seg.dataset.score = i;
+  seg.addEventListener('click', () => onSelectRage(i));
+  thermoBar.appendChild(seg);
+}
+
+function resetRageScreen() {
+  selectedRage = 0;
+  document.getElementById('rage-score-num').textContent = '?';
+  document.getElementById('rage-score-num').style.color = '#404040';
+  document.getElementById('rage-score-label').textContent = '點選下方選擇';
+  document.getElementById('calm-start-section').classList.add('hidden');
+  thermoBar.querySelectorAll('.thermo-seg').forEach(s => s.classList.remove('active-seg'));
+}
+
+function onSelectRage(score) {
+  if (navigator.vibrate) navigator.vibrate(12);
+  selectedRage = score;
+
+  // 更新分數顯示
+  const numEl    = document.getElementById('rage-score-num');
+  const labelEl  = document.getElementById('rage-score-label');
+  numEl.textContent  = score;
+  numEl.style.color  = THERMO_COLORS[score - 1];
+  labelEl.textContent = THERMO_LABELS[score];
+
+  // 高亮 segment
+  thermoBar.querySelectorAll('.thermo-seg').forEach((s, idx) => {
+    s.classList.toggle('active-seg', idx + 1 === score);
+  });
+
+  // 推薦時長
+  calmDuration = score >= 7 ? 120 : 90;
+  document.getElementById('recommend-text').textContent   = `${calmDuration} 秒`;
+  document.getElementById('recommend-reason').textContent =
+    score >= 8 ? '深呼吸，讓身體降溫'
+    : score >= 6 ? '穩住，一步一步來'
+    :              '你還撐得住，補個氧';
+
+  document.getElementById('calm-start-section').classList.remove('hidden');
+}
+
+/* ════════════════════════════════════════════
+   開始冷靜 → calm 頁
+════════════════════════════════════════════ */
+document.getElementById('btn-start-calm').addEventListener('click', () => {
+  if (navigator.vibrate) navigator.vibrate([15,20,15]);
+  go('calm');
+  startCalmSession(calmDuration);
+});
+
+/* ── 計時器狀態 ── */
+let timerInterval   = null;
+let breathePhaseTO  = null;
+let timerRemaining  = 0;
+
+const CIRCUM = 364; // 2 * π * 58 ≈ 364
+
+function startCalmSession(seconds) {
+  clearInterval(timerInterval);
+  clearTimeout(breathePhaseTO);
+
+  timerRemaining = seconds;
+  const ring = document.getElementById('timer-ring');
+  const num  = document.getElementById('timer-num');
+  ring.style.transition = 'none';
+  ring.style.strokeDashoffset = 0;
+  num.textContent = seconds;
+  num.classList.remove('done-flash');
+
+  // 強制 reflow，再啟用 transition
+  ring.getBoundingClientRect();
+  ring.style.transition = 'stroke-dashoffset 1s linear';
+
+  timerInterval = setInterval(() => {
+    timerRemaining--;
+    num.textContent = timerRemaining;
+    const elapsed = seconds - timerRemaining;
+    ring.style.strokeDashoffset = (elapsed / seconds) * CIRCUM;
+
+    if (timerRemaining <= 0) {
+      clearInterval(timerInterval);
+      onCalmDone();
+    }
+  }, 1000);
+
+  startBreatheAnim();
+}
+
+function onCalmDone() {
+  if (navigator.vibrate) navigator.vibrate([40,60,40,60,40]);
+  const num = document.getElementById('timer-num');
+  num.textContent = '✓';
+  num.classList.add('done-flash');
+  document.getElementById('calm-phase-label').textContent = '完成';
+  document.getElementById('calm-center-text').textContent = '';
+}
+
+/* ── 呼吸動畫（JS 驅動 CSS transition） ── */
+const PHASES = [
+  { label: '吸　氣', center: '↑',  duration: 4000, scale: '1.0',  transition: '4s ease-in'  },
+  { label: '屏　息', center: '‥',  duration: 7000, scale: '1.0',  transition: '0.3s ease'   },
+  { label: '吐　氣', center: '↓',  duration: 8000, scale: '0.45', transition: '8s ease-out' },
+];
+
+function startBreatheAnim() {
+  const orb    = document.getElementById('breathe-orb');
+  const label  = document.getElementById('calm-phase-label');
+  const center = document.getElementById('calm-center-text');
+
+  // 重置
+  orb.style.transition = 'none';
+  orb.style.transform  = 'scale(0.45)';
+
+  let phase = 0;
+
+  function nextPhase() {
+    const p = PHASES[phase];
+    label.textContent  = p.label;
+    center.textContent = p.center;
+    orb.style.transition = `transform ${p.transition}`;
+    orb.style.transform  = `scale(${p.scale})`;
+    breathePhaseTO = setTimeout(() => {
+      phase = (phase + 1) % 3;
+      nextPhase();
+    }, p.duration);
   }
-  return null;
+
+  // 短暫延遲讓 transition:none 生效後才開始
+  setTimeout(nextPhase, 80);
 }
 
-function renderResponses(sit) {
-  const s = sit || FALLBACK;
-  document.getElementById('resp-gray').textContent     = s.gray;
-  document.getElementById('resp-firm').textContent     = s.firm;
-  document.getElementById('resp-boundary').textContent = s.boundary;
-  const cards = document.getElementById('response-cards');
-  cards.classList.remove('hidden');
-  setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+/* ── 完成/返回按鈕 ── */
+document.getElementById('btn-calm-done').addEventListener('click', () => {
+  clearInterval(timerInterval);
+  clearTimeout(breathePhaseTO);
+  go('translator');
+});
+
+document.getElementById('btn-calm-back').addEventListener('click', () => {
+  clearInterval(timerInterval);
+  clearTimeout(breathePhaseTO);
+  go('rage');
+});
+
+/* ════════════════════════════════════════════
+   翻譯機
+════════════════════════════════════════════ */
+const INTENT_MAP = [
+  {
+    keywords: /殺價|降價|便宜一點|算便宜|少一點|打折|太貴|貴死|貴什麼|買這麼貴|這種價|不值|划不來|砍價|再便宜|少個零/,
+    responses: [
+      '不好意思，這個價格已經是我們的底價了，沒有辦法再調整，感謝您的理解。',
+      '抱歉，這價格我們已經做到最低，品質有保障，請見諒。',
+      '謝謝您的詢問，這個定價是固定的，無法再優惠，歡迎您再考慮看看。',
+    ],
+  },
+  {
+    keywords: /不好|難吃|爛|品質差|假的|黑心|騙人|不新鮮|有問題|這什麼東西|垃圾|這樣也賣|坑|黑店/,
+    responses: [
+      '非常感謝您的反映，如果有任何問題我們很樂意處理，但請用正常方式溝通，謝謝。',
+      '我們的品質是有把握的，如果您有具體問題歡迎說明，我們會盡力協助。',
+      '不好意思讓您有這樣的感受，但請保持禮貌溝通，謝謝您。',
+    ],
+  },
+  {
+    keywords: /滾|閉嘴|去死|不想理|煩死|閃|不想看到|走開|出去|離開|不服務|不要再來|趕人/,
+    responses: [
+      '不好意思，今天我們的服務就到這裡，希望您有愉快的一天，再見。',
+      '抱歉，我們目前沒辦法繼續這段對話，感謝您的光臨，再見。',
+      '非常抱歉，我們無法繼續服務，請問還有其他客人需要協助嗎？',
+    ],
+  },
+  {
+    keywords: /慢死|等很久|怎麼這麼慢|速度|催|等半天|怎麼還沒|快一點|浪費時間|磨蹭/,
+    responses: [
+      '非常抱歉讓您久等，我們正在盡快處理，請再稍候一下，謝謝您的耐心。',
+      '不好意思讓您等待，目前正在忙碌中，馬上就好，感謝您的體諒。',
+      '抱歉，我們每一份都用心製作，請再等一下，感謝您的支持。',
+    ],
+  },
+  {
+    keywords: /白癡|智障|腦殘|廢物|沒用|爛貨|混蛋|去死|你算什麼|你懂什麼|幹|靠北|他媽|媽的|X的|吃屎|臭|賤|你這種|豬/,
+    responses: [
+      '不好意思，我們希望保持友善的溝通環境，謝謝您的配合。',
+      '抱歉，我們無法接受這樣的溝通方式，請您以尊重的態度交流，謝謝。',
+      '我們理解您可能有些不滿，但請保持基本的禮貌，這樣對雙方都好。',
+    ],
+  },
+  {
+    keywords: /不可能|辦不到|不想|不要|不行|拒絕|不接受|做不到|沒有|沒辦法|不準|不允許|不讓|不給/,
+    responses: [
+      '非常抱歉，這個部分我們確實沒辦法配合，感謝您的理解。',
+      '不好意思，這個需求超出我們的服務範圍，無法協助，請見諒。',
+      '抱歉，這個我們真的做不到，希望您能體諒。',
+    ],
+  },
+];
+
+const FALLBACK = [
+  '不好意思，關於您提到的部分，我們目前沒有辦法配合，感謝您的理解。',
+  '抱歉，這個部分我們立場不同，希望您能理解，謝謝。',
+  '感謝您的意見，我們會記下來，今天就先到這裡，謝謝您。',
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function translate(text) {
+  if (!text.trim()) return '（先說說你想罵什麼？）';
+  for (const intent of INTENT_MAP) {
+    if (intent.keywords.test(text)) return pick(intent.responses);
+  }
+  return pick(FALLBACK);
 }
 
-/* 快速情境 chip */
-document.querySelectorAll('.scenario-chip').forEach(chip => {
-  chip.addEventListener('click', () => {
-    document.querySelectorAll('.scenario-chip').forEach(c =>
-      c.classList.remove('!border-shield/60', 'text-shield'));
-    chip.classList.add('!border-shield/60', 'text-shield');
-    if (navigator.vibrate) navigator.vibrate(8);
-    renderResponses(SITUATION_DB[chip.dataset.scenario]);
-  });
+document.getElementById('btn-translate').addEventListener('click', () => {
+  const out = translate(document.getElementById('rant-input').value);
+  document.getElementById('translated-output').textContent = out;
 });
 
-/* 自由輸入 → 生成 */
-document.getElementById('btn-generate').addEventListener('click', () => {
-  const text = document.getElementById('rant-input').value.trim();
-  if (!text) { renderResponses(null); return; }
-  const sit = detectSituation(text);
-  renderResponses(sit);
+document.getElementById('btn-copy').addEventListener('click', async () => {
+  const txt = document.getElementById('translated-output').textContent;
+  try { await navigator.clipboard.writeText(txt); } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate(15);
 });
 
-/* 每張卡的複製按鈕 */
-document.querySelectorAll('.copy-resp').forEach((btn, i) => {
-  btn.addEventListener('click', async () => {
-    const ids = ['resp-gray', 'resp-firm', 'resp-boundary'];
-    const txt = document.getElementById(ids[i]).textContent;
-    try { await navigator.clipboard.writeText(txt); } catch (e) {}
-    btn.textContent = '✓ 已複製';
-    setTimeout(() => { btn.textContent = '複製'; }, 1200);
-    if (navigator.vibrate) navigator.vibrate(15);
-  });
-});
-
-/* 語音輸入 */
 document.getElementById('btn-voice').addEventListener('click', () => {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert('這台手機暫不支援語音，先用打字。'); return; }
@@ -649,232 +619,37 @@ document.getElementById('btn-voice').addEventListener('click', () => {
   };
 });
 
-/* LLM 接口（預留，取得 API Key 後在此接入）
-async function callLLM(situationText) {
-  const apiKey = localStorage.getItem('llm_api_key');
-  if (!apiKey) return null;
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
-      messages: [{ role: 'user', content:
-        `你是一個擺攤老闆的應對助理。以下是剛才發生的狀況：「${situationText}」
-請生成三種回應（每種一行，用 | 分隔）：
-1. 安全中性版（最短最無聊，像一塊石頭）
-2. 禮貌堅定版（使用 I statement，有禮有節）
-3. 設定界線版（適合重複發生時，清楚表達立場）
-只輸出三行文字，不要解釋。` }]
-    })
+/* ════════════════════════════════════════════
+   話術庫
+════════════════════════════════════════════ */
+const SCRIPTS = [
+  '不好意思，這個價錢已經是底價了，沒辦法再低喔。',
+  '老闆說今天就這個價，您要不要再考慮一下？',
+  '抱歉，這部分我們沒辦法配合，謝謝您。',
+  '不好意思，後面還有客人，麻煩您決定一下。',
+  '這個品質就是這個價格，您可以再比較看看。',
+  '不好意思，做生意要互相，這樣我會虧本。',
+  '謝謝您今天過來，祝您順心。',
+  '我們不接受這樣的講話方式，請您離開，謝謝。',
+];
+
+const list = document.getElementById('scripts-list');
+SCRIPTS.forEach(s => {
+  const li = document.createElement('li');
+  li.className = 'p-4 rounded-2xl bg-panel border border-edge text-neutral-200 btn-press active:bg-edge cursor-pointer';
+  li.textContent = s;
+  li.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(s); } catch (e) {}
+    li.classList.add('!border-shield/60');
+    setTimeout(() => li.classList.remove('!border-shield/60'), 600);
+    if (navigator.vibrate) navigator.vibrate(15);
   });
-  const data = await res.json();
-  const lines = data.content[0].text.split('|').map(s => s.trim());
-  return { gray: lines[0], firm: lines[1], boundary: lines[2] };
-}
-*/
-
-/* ============================================================
-   API Key 管理 + LLM 真實生成
-   ============================================================ */
-
-function getApiKey() { return localStorage.getItem('shield_api_key') || ''; }
-
-function syncLlmButton() {
-  const btn = document.getElementById('btn-llm');
-  const hasKey = !!getApiKey();
-  btn.disabled = !hasKey;
-  btn.className = hasKey
-    ? 'mt-3 w-full py-3 rounded-xl bg-shield/10 border border-shield/30 text-shield text-sm btn-press'
-    : 'mt-3 w-full py-3 rounded-xl bg-edge/50 border border-neutral-800 text-neutral-700 text-sm';
-  btn.textContent = hasKey ? '✦ AI 真實生成' : '✦ AI 真實生成（設定 > 填入 API Key 後啟用）';
-}
-
-/* 設定頁：儲存 / 清除 Key */
-document.getElementById('btn-save-key').addEventListener('click', () => {
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val.startsWith('sk-ant-')) {
-    document.getElementById('api-key-status').textContent = '格式不對，Key 應以 sk-ant- 開頭。';
-    return;
-  }
-  localStorage.setItem('shield_api_key', val);
-  document.getElementById('api-key-input').value = '';
-  document.getElementById('api-key-status').textContent = '✓ 已儲存';
-  document.getElementById('btn-clear-key').classList.remove('hidden');
-  syncLlmButton();
-  if (navigator.vibrate) navigator.vibrate(15);
+  list.appendChild(li);
 });
 
-document.getElementById('btn-clear-key').addEventListener('click', () => {
-  localStorage.removeItem('shield_api_key');
-  document.getElementById('api-key-status').textContent = '已清除';
-  document.getElementById('btn-clear-key').classList.add('hidden');
-  syncLlmButton();
-});
-
-/* 載入時初始化 Key 狀態 */
-(function initApiKeyUI() {
-  if (getApiKey()) {
-    document.getElementById('api-key-status').textContent = '✓ 已設定（填新的可覆蓋）';
-    document.getElementById('btn-clear-key').classList.remove('hidden');
-  }
-  syncLlmButton();
-})();
-
-/* LLM 呼叫 */
-async function callLLM(situationText) {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-  const prompt = `你是一個人際衝突應對助理，專門幫助面對難搞同學、主管或朋友的人。
-
-以下是使用者描述的狀況：「${situationText}」
-
-請生成三種回應，每種一行，用換行分隔，不要加編號或標題：
-第一行：安全中性版（最短，像一塊無聊的石頭，不給對方能量）
-第二行：禮貌堅定版（有禮貌但立場清楚，使用 I statement）
-第三行：設定界線版（適合重複發生時，明確說出你的底線）
-
-只輸出三行回應文字，不要任何解釋。`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  const lines = data.content[0].text.trim().split('\n').map(s => s.trim()).filter(Boolean);
-  return { gray: lines[0] || '好。', firm: lines[1] || '我理解，但我的立場是清楚的。', boundary: lines[2] || '這件事我的答案不會改變。' };
-}
-
-document.getElementById('btn-llm').addEventListener('click', async () => {
-  const text = document.getElementById('rant-input').value.trim();
-  if (!text) { alert('請先描述發生的狀況。'); return; }
-  const btn = document.getElementById('btn-llm');
-  btn.textContent = '生成中…';
-  btn.disabled = true;
-  try {
-    const result = await callLLM(text);
-    if (result) renderResponses(result);
-  } catch (e) {
-    alert('呼叫失敗，請確認 API Key 是否正確，或網路是否正常。');
-  } finally {
-    btn.disabled = false;
-    syncLlmButton();
-  }
-});
-
-/* ============================================================
-   設定：主題 / 字體大小 / 字型
-   ============================================================ */
-
-const THEMES = {
-  black: { bg:'#0a0a0a', panel:'#141414', edge:'#1f1f1f', text:'#f5f5f5', muted:'#525252', label:'純黑' },
-  gray:  { bg:'#111827', panel:'#1f2937', edge:'#374151', text:'#f1f5f9', muted:'#94a3b8', label:'深灰' },
-  navy:  { bg:'#0a0f1e', panel:'#0f172a', edge:'#1e293b', text:'#e2e8f0', muted:'#94a3b8', label:'深藍' },
-  warm:  { bg:'#1c1007', panel:'#2c1a0a', edge:'#3d2510', text:'#fef3c7', muted:'#d97706', label:'暖棕' },
-  light: { bg:'#f0f0f0', panel:'#ffffff', edge:'#e0e0e0', text:'#111111', muted:'#555555', label:'淺色' },
-  white: { bg:'#ffffff', panel:'#f8f8f8', edge:'#e5e5e5', text:'#0a0a0a', muted:'#555555', label:'純白' },
-};
-
-const FONTS = {
-  system:  { family: '"Noto Sans TC", system-ui, sans-serif',                                         label: '標準' },
-  rounded: { family: '"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro",system-ui,sans-serif',   label: '圓體' },
-  mono:    { family: '"Courier New", Courier, monospace',                                              label: '等寬' },
-};
-
-const userSettings = {
-  theme: 'black', size: 16, font: 'system',
-
-  applyTheme(id) {
-    const t = THEMES[id] || THEMES.black;
-    const root = document.documentElement;
-    root.style.setProperty('--u-bg',    t.bg);
-    root.style.setProperty('--u-panel', t.panel);
-    root.style.setProperty('--u-edge',  t.edge);
-    root.style.setProperty('--u-text',  t.text);
-    root.style.setProperty('--u-muted', t.muted);
-    document.querySelector('meta[name="theme-color"]').setAttribute('content', t.bg);
-    document.getElementById('theme-label').textContent = t.label;
-    document.querySelectorAll('.theme-swatch').forEach(b => {
-      b.style.outline = b.dataset.theme === id ? '2px solid #22d3ee' : '';
-      b.style.outlineOffset = b.dataset.theme === id ? '3px' : '';
-    });
-  },
-
-  applySize(px) {
-    document.documentElement.style.fontSize = px + 'px';
-    document.querySelectorAll('.fontsize-btn').forEach(b => {
-      b.classList.toggle('!border-shield/60', +b.dataset.size === px);
-      b.classList.toggle('text-shield',       +b.dataset.size === px);
-    });
-  },
-
-  applyFont(id) {
-    const f = FONTS[id] || FONTS.system;
-    document.body.style.fontFamily = f.family;
-    document.querySelectorAll('.font-btn').forEach(b => {
-      b.classList.toggle('!border-shield/60', b.dataset.font === id);
-      b.classList.toggle('text-shield',       b.dataset.font === id);
-    });
-  },
-
-  save() {
-    localStorage.setItem('shield_settings', JSON.stringify({ theme: this.theme, size: this.size, font: this.font }));
-  },
-
-  load() {
-    try {
-      const s = JSON.parse(localStorage.getItem('shield_settings') || '{}');
-      this.theme = s.theme || 'black';
-      this.size  = s.size  || 16;
-      this.font  = s.font  || 'system';
-    } catch(e) {}
-    this.applyTheme(this.theme);
-    this.applySize(this.size);
-    this.applyFont(this.font);
-  },
-};
-
-document.querySelectorAll('.theme-swatch').forEach(b => {
-  b.addEventListener('click', () => {
-    userSettings.theme = b.dataset.theme;
-    userSettings.applyTheme(b.dataset.theme);
-    userSettings.save();
-    if (navigator.vibrate) navigator.vibrate(8);
-  });
-});
-
-document.querySelectorAll('.fontsize-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    userSettings.size = +b.dataset.size;
-    userSettings.applySize(+b.dataset.size);
-    userSettings.save();
-    if (navigator.vibrate) navigator.vibrate(8);
-  });
-});
-
-document.querySelectorAll('.font-btn').forEach(b => {
-  b.addEventListener('click', () => {
-    userSettings.font = b.dataset.font;
-    userSettings.applyFont(b.dataset.font);
-    userSettings.save();
-    if (navigator.vibrate) navigator.vibrate(8);
-  });
-});
-
-userSettings.load();
-
-/* ---------- PWA service worker（之後補 sw.js） ---------- */
+/* ════════════════════════════════════════════
+   PWA
+════════════════════════════════════════════ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
