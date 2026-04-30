@@ -197,7 +197,6 @@
     <div class="flex gap-3 mt-3">
       <button id="btn-voice" class="flex-none px-5 py-3 rounded-xl bg-edge text-neutral-200 btn-press">🎙</button>
       <button id="btn-generate" class="flex-1 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield btn-press font-medium">生成 3 種回應</button>
-      <button data-go="scripts" class="flex-none px-4 py-3 rounded-xl bg-edge text-neutral-400 btn-press text-sm">話術庫</button>
     </div>
 
     <!-- 三種回應卡 -->
@@ -244,11 +243,7 @@
     </button>
   </section>
 
-  <!-- ===== 畫面 4：話術庫 ===== -->
-  <section id="screen-scripts" class="screen flex-1 flex-col px-6 pb-8">
-    <h2 class="text-xl mt-2 mb-4">萬用話術</h2>
-    <ul id="scripts-list" class="space-y-3"></ul>
-  </section>
+
 
   <!-- ===== 畫面 5：設定 ===== -->
   <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
@@ -288,6 +283,19 @@
         <button class="font-btn py-3 px-4 rounded-xl bg-edge btn-press text-left" data-font="mono" style="font-family:monospace">等寬　<span class="text-neutral-500 text-sm" style="font-family:inherit">科技感</span></button>
       </div>
     </div>
+
+    <!-- AI API Key -->
+    <div class="mb-4">
+      <p class="text-neutral-500 text-xs tracking-widest mb-1">AI 真實生成（選填）</p>
+      <p class="text-neutral-600 text-xs mb-3">填入後「禮貌化回應生成器」的 AI 按鈕會啟用，由 Claude 根據你描述的情況即時生成回應。Key 只存在你的手機，不會上傳。</p>
+      <div class="flex gap-2">
+        <input id="api-key-input" type="password" placeholder="sk-ant-..." spellcheck="false"
+          class="flex-1 bg-panel border border-edge rounded-xl px-4 py-3 text-neutral-200 placeholder:text-neutral-700 text-sm focus:outline-none focus:border-shield/50" />
+        <button id="btn-save-key" class="px-4 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield text-sm btn-press">儲存</button>
+      </div>
+      <p id="api-key-status" class="text-xs mt-2 text-neutral-600"></p>
+      <button id="btn-clear-key" class="mt-2 text-xs text-neutral-700 underline btn-press hidden">清除 Key</button>
+    </div>
   </section>
 
   <!-- 底部回主頁 -->
@@ -298,7 +306,7 @@
 
 <script>
 /* ---------- 路由 ---------- */
-const screens = ['shield', 'cool', 'breathe', 'translator', 'scripts', 'settings'];
+const screens = ['shield', 'cool', 'breathe', 'translator', 'settings'];
 function go(name) {
   screens.forEach(s => {
     const el = document.getElementById('screen-' + s);
@@ -666,29 +674,103 @@ async function callLLM(situationText) {
 }
 */
 
-/* ---------- 話術庫 ---------- */
-const SCRIPTS = [
-  '不好意思，這個價錢已經是底價了，沒辦法再低喔。',
-  '老闆說今天就這個價，您要不要再考慮一下？',
-  '抱歉，這部分我們沒辦法配合，謝謝您。',
-  '不好意思，後面還有客人，麻煩您決定一下。',
-  '這個品質就是這個價格，您可以再比較看看。',
-  '不好意思，做生意要互相，這樣我會虧本。',
-  '謝謝您今天過來，祝您順心。',
-  '我們不接受這樣的講話方式，請您離開，謝謝。',
-];
-const list = document.getElementById('scripts-list');
-SCRIPTS.forEach(s => {
-  const li = document.createElement('li');
-  li.className = 'p-4 rounded-2xl bg-panel border border-edge text-neutral-200 btn-press active:bg-edge';
-  li.textContent = s;
-  li.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(s); } catch (e) {}
-    li.classList.add('!border-shield/60');
-    setTimeout(() => li.classList.remove('!border-shield/60'), 600);
-    if (navigator.vibrate) navigator.vibrate(15);
+/* ============================================================
+   API Key 管理 + LLM 真實生成
+   ============================================================ */
+
+function getApiKey() { return localStorage.getItem('shield_api_key') || ''; }
+
+function syncLlmButton() {
+  const btn = document.getElementById('btn-llm');
+  const hasKey = !!getApiKey();
+  btn.disabled = !hasKey;
+  btn.className = hasKey
+    ? 'mt-3 w-full py-3 rounded-xl bg-shield/10 border border-shield/30 text-shield text-sm btn-press'
+    : 'mt-3 w-full py-3 rounded-xl bg-edge/50 border border-neutral-800 text-neutral-700 text-sm';
+  btn.textContent = hasKey ? '✦ AI 真實生成' : '✦ AI 真實生成（設定 > 填入 API Key 後啟用）';
+}
+
+/* 設定頁：儲存 / 清除 Key */
+document.getElementById('btn-save-key').addEventListener('click', () => {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('api-key-status').textContent = '格式不對，Key 應以 sk-ant- 開頭。';
+    return;
+  }
+  localStorage.setItem('shield_api_key', val);
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('api-key-status').textContent = '✓ 已儲存';
+  document.getElementById('btn-clear-key').classList.remove('hidden');
+  syncLlmButton();
+  if (navigator.vibrate) navigator.vibrate(15);
+});
+
+document.getElementById('btn-clear-key').addEventListener('click', () => {
+  localStorage.removeItem('shield_api_key');
+  document.getElementById('api-key-status').textContent = '已清除';
+  document.getElementById('btn-clear-key').classList.add('hidden');
+  syncLlmButton();
+});
+
+/* 載入時初始化 Key 狀態 */
+(function initApiKeyUI() {
+  if (getApiKey()) {
+    document.getElementById('api-key-status').textContent = '✓ 已設定（填新的可覆蓋）';
+    document.getElementById('btn-clear-key').classList.remove('hidden');
+  }
+  syncLlmButton();
+})();
+
+/* LLM 呼叫 */
+async function callLLM(situationText) {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+  const prompt = `你是一個人際衝突應對助理，專門幫助面對難搞同學、主管或朋友的人。
+
+以下是使用者描述的狀況：「${situationText}」
+
+請生成三種回應，每種一行，用換行分隔，不要加編號或標題：
+第一行：安全中性版（最短，像一塊無聊的石頭，不給對方能量）
+第二行：禮貌堅定版（有禮貌但立場清楚，使用 I statement）
+第三行：設定界線版（適合重複發生時，明確說出你的底線）
+
+只輸出三行回應文字，不要任何解釋。`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }],
+    }),
   });
-  list.appendChild(li);
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  const lines = data.content[0].text.trim().split('\n').map(s => s.trim()).filter(Boolean);
+  return { gray: lines[0] || '好。', firm: lines[1] || '我理解，但我的立場是清楚的。', boundary: lines[2] || '這件事我的答案不會改變。' };
+}
+
+document.getElementById('btn-llm').addEventListener('click', async () => {
+  const text = document.getElementById('rant-input').value.trim();
+  if (!text) { alert('請先描述發生的狀況。'); return; }
+  const btn = document.getElementById('btn-llm');
+  btn.textContent = '生成中…';
+  btn.disabled = true;
+  try {
+    const result = await callLLM(text);
+    if (result) renderResponses(result);
+  } catch (e) {
+    alert('呼叫失敗，請確認 API Key 是否正確，或網路是否正常。');
+  } finally {
+    btn.disabled = false;
+    syncLlmButton();
+  }
 });
 
 /* ============================================================
