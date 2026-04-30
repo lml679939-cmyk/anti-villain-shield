@@ -159,21 +159,21 @@
   <!-- ===== 畫面 3：禮貌化回應生成器 ===== -->
   <section id="screen-translator" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
     <h2 class="text-xl mt-2 mb-1">禮貌化回應生成器</h2>
-    <p class="text-neutral-500 text-sm mb-4">描述剛才發生什麼，我給你 3 種等級的回應。</p>
+    <p class="text-neutral-500 text-sm mb-4">說說發生什麼事，我幫你把想說的話包得有界線。</p>
 
     <!-- 快速情境 chip -->
     <div class="flex gap-2 overflow-x-auto pb-2 mb-4" style="-webkit-overflow-scrolling:touch">
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="blame_shift">責任被推給我</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="princess_tone">公主語氣</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="price_push">一直要殺價</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="quality_attack">嫌品質差</button>
-      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="unreasonable">無理要求</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="blame_shift">鍋甩給我</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="attitude">態度差/酸</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="unfair_load">工作分配不公</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="supervisor_pressure">主管施壓</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="passive_aggressive">冷嘲熱諷</button>
       <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="repeat_nag">同件事一直盧</button>
     </div>
 
     <!-- 輸入區 -->
     <textarea id="rant-input" rows="4"
-      placeholder="例：她把責任推給我，還用很公主的語氣..."
+      placeholder="例：組員把自己沒做的部分全推給我，還說是我沒溝通清楚..."
       class="w-full bg-panel border border-edge rounded-2xl p-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-shield/50 text-sm"></textarea>
 
     <div class="flex gap-3 mt-3">
@@ -488,47 +488,47 @@ function startBreatheLabel() {
 
 const SITUATION_DB = {
   blame_shift: {
-    keywords: /推給我|怪我|你的問題|你的責任|害我|都是你|你錯了|你不對|你弄的|推卸/,
-    gray:     '好。',
-    firm:     '我理解您有這樣的感受。就我這邊的情況，這件事的來龍去脈我已經說明過了，我這邊的立場是清楚的。',
-    boundary: '這件事的責任我已經說明過了，我的立場不會改變。如果您還有疑問，我很樂意再說明一次，但方式請保持尊重，謝謝。',
+    keywords: /推給我|怪我|我的問題|我的責任|害我|都是我|我錯了|沒溝通|沒做好|甩鍋|推卸/,
+    gray:     '我知道了。',
+    firm:     '我理解你有這樣的感受，但就我所知道的情況，這件事的來龍去脈是這樣的：[說明事實]。我想我們對這件事的理解不太一樣。',
+    boundary: '這件事我的部分我已經做了，責任的歸屬我有自己的判斷。如果你有不同看法，我們可以各自說清楚，但我不會接受這樣的定論。',
   },
-  princess_tone: {
-    keywords: /公主|態度|語氣|命令|口氣|好像欠她|覺得自己|高人一等|看不起|瞧不起|怎麼跟我說話/,
+  attitude: {
+    keywords: /態度|語氣|口氣|公主|兇|嗆|怎麼跟我說話|好像欠她|看不起|瞧不起|高人一等|不尊重/,
     gray:     '嗯。',
-    firm:     '不好意思，我希望我們可以用比較輕鬆的方式溝通，這樣對我們雙方都比較好，謝謝您的配合。',
-    boundary: '我很樂意為您服務，但前提是互相尊重。如果溝通方式讓我感到不舒服，我有權利選擇結束這次服務，謝謝理解。',
+    firm:     '我覺得我們溝通的方式可以更順暢一點。我想好好把事情講清楚，但需要在比較平等的狀態下談。',
+    boundary: '我願意繼續討論這件事，但前提是互相尊重。這樣的說話方式讓我很難繼續溝通，希望你能理解。',
   },
-  price_push: {
-    keywords: /殺價|降價|便宜一點|少一點|打折|太貴|貴死|不值|砍價|再便宜|別人更便宜|對面更便宜/,
-    gray:     '沒辦法。',
-    firm:     '非常感謝您的詢問。這個價格是我們的底價，品質我們是有把握的，真的沒辦法再調整，請您見諒。',
-    boundary: '這個價格我已經說過是底價了，不會再變動。如果您覺得不合適，完全尊重您的決定，歡迎您多比較。',
+  unfair_load: {
+    keywords: /我做比較多|分配不公|都是我在|他沒做|她沒貢獻|份量不均|憑什麼我|白做|出工|不公平/,
+    gray:     '我記住了。',
+    firm:     '我想提一下工作分配的問題。我目前負責的部分比當初討論的多，我希望我們可以重新確認一下每個人的範圍。',
+    boundary: '我做這個沒問題，但我需要這件事被看見。如果分工一直是這樣的狀態，我之後會需要調整我能承擔的範圍。',
   },
-  quality_attack: {
-    keywords: /不好|難吃|爛|品質差|假的|黑心|騙人|不新鮮|有問題|垃圾|這樣也賣|坑|黑店|過期/,
-    gray:     '嗯，謝謝。',
-    firm:     '感謝您的意見。我們對自己的品質是有信心的，如果您有具體的問題，我很樂意協助處理。',
-    boundary: '我們對品質是有把握的。如果您真的不滿意，我建議您找更適合您的選項，我們互相尊重。',
+  supervisor_pressure: {
+    keywords: /主管|老闆|上司|長官|叫我|要我|命令|交代|不合理|壓力|Deadline|截止|為什麼是我|加班/,
+    gray:     '好，我知道了。',
+    firm:     '我會盡力配合，但我想先確認一下這個需求的優先順序，因為目前手上還有其他事情在跑，想確保都能做好。',
+    boundary: '這個我可以做，但我需要說明一下目前的狀況：[說明現況]。如果這是最優先的，我會需要調整其他事項的時程，可以再確認嗎？',
   },
-  unreasonable: {
-    keywords: /特別優惠|只有我|例外|規定不合理|為什麼不行|別人可以|你就通融|給我面子|幫個忙/,
-    gray:     '做不到。',
-    firm:     '非常抱歉，這個部分超出我們能做到的範圍，沒辦法配合，請您諒解。',
-    boundary: '這個要求我們真的沒辦法做到，也不會有例外。我的服務範圍就是這樣，謝謝您的理解。',
+  passive_aggressive: {
+    keywords: /酸|諷刺|話中有話|陰陽怪氣|不是針對你|只是說說|沒什麼意思|大家都知道|聽說|暗示/,
+    gray:     '嗯，謝謝你告訴我。',
+    firm:     '我聽到你說的，但我不太確定你的意思是什麼。如果你有什麼想直接說的，我很樂意聽。',
+    boundary: '我不太習慣這種方式溝通。如果你對我有什麼意見或不滿，我希望你可以直接說，這樣對大家都比較好。',
   },
   repeat_nag: {
-    keywords: /又來|一直|還是|繞回來|說了幾次|講幾遍|同樣|重複|還沒解決|還是這樣/,
+    keywords: /又來|一直|還是|繞回來|說了幾次|講幾遍|重複|一樣的話|又提|沒完|還在|怎麼還/,
     gray:     '就這樣。',
-    firm:     '這件事我們已經討論過了，我的答案跟剛才一樣。您還有其他問題嗎？',
-    boundary: '我已經回答過這個問題了，答案不會改變。繼續討論這件事對我們雙方都沒有幫助，我建議就到這裡。',
+    firm:     '這件事我們已經討論過了，我的想法跟上次一樣。如果有新的資訊或角度，我很願意再聊，但目前的立場不會變。',
+    boundary: '這件事我的答案不會變了。我理解你還有想法，但反覆討論同一件事對我們都是消耗，我想把這個話題到這裡結束。',
   },
 };
 
 const FALLBACK = {
-  gray:     '好。',
-  firm:     '不好意思，這個部分我們沒辦法配合，感謝您的理解。',
-  boundary: '我的立場已經很清楚了。如果您還有其他問題，歡迎繼續，但這件事我們就到這裡，謝謝。',
+  gray:     '我知道了。',
+  firm:     '我理解你的想法。這件事我有自己的判斷，我們對這個問題可能有不同的看法。',
+  boundary: '我的立場已經很清楚了。如果你有新的想法我很願意聽，但這件事我的回答不會改變。',
 };
 
 function detectSituation(text) {
