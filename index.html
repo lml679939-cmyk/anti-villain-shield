@@ -106,7 +106,7 @@
 
     <!-- 上半：護盾按鈕 -->
     <div class="flex-1 flex flex-col items-center justify-center">
-      <p class="text-neutral-400 text-sm mb-8">深呼吸。錢是你的，情緒也是你的。</p>
+      <p class="text-neutral-400 text-sm mb-8">深呼吸。你有界線，你撐得住。</p>
       <button id="btn-shield"
         class="btn-press w-56 h-56 rounded-full bg-gradient-to-br from-shield/30 to-calm/20
                border border-shield/40 shadow-[0_0_60px_-10px_rgba(34,211,238,0.5)]
@@ -115,7 +115,7 @@
       </button>
       <button data-go="translator"
         class="mt-8 text-neutral-400 text-sm underline underline-offset-4 decoration-neutral-700 btn-press">
-        直接翻譯氣話 →
+        直接生成回應 →
       </button>
     </div>
 
@@ -266,46 +266,95 @@
   </section>
 
   <!-- ════════════════════════════════════════
-       畫面 5：翻譯機
+       畫面 5：禮貌化回應生成器
   ════════════════════════════════════════ -->
-  <section id="screen-translator" class="screen flex-1 flex-col px-6 pb-8">
-    <h2 class="text-xl mt-2 mb-1">氣話翻譯機</h2>
-    <p class="text-neutral-500 text-sm mb-4">把想罵的丟進來，我幫你包成有界線的版本。</p>
+  <section id="screen-translator" class="screen flex-1 flex-col px-6 pb-8 overflow-y-auto">
+    <h2 class="text-xl mt-2 mb-1">禮貌化回應生成器</h2>
+    <p class="text-neutral-500 text-sm mb-4">說說發生什麼事，我幫你把想說的話包得有界線。</p>
 
-    <textarea id="rant-input" rows="5"
-      placeholder="例：你他X的奧客，這價錢還想殺..."
-      class="w-full bg-panel border border-edge rounded-2xl p-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-shield/50"></textarea>
+    <!-- 快速情境 chip -->
+    <div class="flex gap-2 overflow-x-auto pb-2 mb-4" style="-webkit-overflow-scrolling:touch">
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="blame_shift">鍋甩給我</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="attitude">態度差／酸</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="unfair_load">工作分配不公</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="supervisor_pressure">主管施壓</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="passive_aggressive">冷嘲熱諷</button>
+      <button class="scenario-chip shrink-0 px-4 py-2 rounded-full bg-edge border border-neutral-700 text-neutral-300 text-sm btn-press whitespace-nowrap" data-scenario="repeat_nag">同件事一直盧</button>
+    </div>
+
+    <textarea id="rant-input" rows="4"
+      placeholder="例：組員把自己沒做的部分全推給我，還說是我沒溝通清楚..."
+      class="w-full bg-panel border border-edge rounded-2xl p-4 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-shield/50 text-sm"></textarea>
 
     <div class="flex gap-3 mt-3">
-      <button id="btn-voice" class="flex-1 py-3 rounded-xl bg-edge text-neutral-200 btn-press">🎙 語音</button>
-      <button id="btn-translate" class="flex-1 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield btn-press">轉換</button>
+      <button id="btn-voice" class="flex-none px-5 py-3 rounded-xl bg-edge text-neutral-200 btn-press">🎙</button>
+      <button id="btn-generate" class="flex-1 py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield btn-press font-medium">生成 3 種回應</button>
     </div>
 
-    <div id="translated-output"
-      class="mt-5 p-4 rounded-2xl bg-panel border border-edge text-neutral-200 min-h-[6rem] text-base leading-relaxed">
-      <span class="text-neutral-600">輸出會顯示在這裡。</span>
+    <!-- 三張回應卡 -->
+    <div id="response-cards" class="mt-5 space-y-3 hidden">
+      <div class="rounded-2xl bg-panel border border-emerald-900/60 overflow-hidden">
+        <div class="flex items-center gap-2 px-4 pt-4 pb-2">
+          <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-700/50">安全中性</span>
+          <span class="text-neutral-600 text-xs">灰岩法・最短最無聊</span>
+        </div>
+        <p id="resp-gray" class="px-4 pb-3 text-neutral-100 text-base leading-relaxed"></p>
+        <button class="copy-resp w-full py-2 text-neutral-500 text-xs border-t border-emerald-900/40 btn-press active:bg-emerald-900/20">複製</button>
+      </div>
+
+      <div class="rounded-2xl bg-panel border border-calm/30 overflow-hidden">
+        <div class="flex items-center gap-2 px-4 pt-4 pb-2">
+          <span class="text-xs px-2 py-0.5 rounded-full bg-calm/20 text-calm border border-calm/30">禮貌堅定</span>
+          <span class="text-neutral-600 text-xs">I statement・有禮有節</span>
+        </div>
+        <p id="resp-firm" class="px-4 pb-3 text-neutral-100 text-base leading-relaxed"></p>
+        <button class="copy-resp w-full py-2 text-neutral-500 text-xs border-t border-calm/20 btn-press active:bg-calm/10">複製</button>
+      </div>
+
+      <div class="rounded-2xl bg-panel border border-warn/30 overflow-hidden">
+        <div class="flex items-center gap-2 px-4 pt-4 pb-2">
+          <span class="text-xs px-2 py-0.5 rounded-full bg-warn/20 text-warn border border-warn/30">設定界線</span>
+          <span class="text-neutral-600 text-xs">適合重複發生時</span>
+        </div>
+        <p id="resp-boundary" class="px-4 pb-3 text-neutral-100 text-base leading-relaxed"></p>
+        <button class="copy-resp w-full py-2 text-neutral-500 text-xs border-t border-warn/20 btn-press active:bg-warn/10">複製</button>
+      </div>
     </div>
 
-    <div class="flex gap-3 mt-3">
-      <button id="btn-copy" class="flex-1 py-3 rounded-xl bg-edge text-neutral-300 btn-press">複製</button>
-      <button data-go="scripts" class="flex-1 py-3 rounded-xl bg-edge text-neutral-300 btn-press">話術庫</button>
+    <div class="mt-4 flex items-center gap-2">
+      <div class="flex-1 h-px bg-edge"></div>
+      <span class="text-neutral-700 text-xs">或</span>
+      <div class="flex-1 h-px bg-edge"></div>
     </div>
-  </section>
-
-  <!-- ════════════════════════════════════════
-       畫面 6：話術庫
-  ════════════════════════════════════════ -->
-  <section id="screen-scripts" class="screen flex-1 flex-col px-6 pb-8">
-    <h2 class="text-xl mt-2 mb-4">萬用話術</h2>
-    <ul id="scripts-list" class="space-y-3"></ul>
+    <button id="btn-llm" disabled
+      class="mt-3 w-full py-3 rounded-xl bg-edge/50 border border-neutral-800 text-neutral-700 text-sm btn-press">
+      ✦ AI 真實生成（設定 › 填入 API Key 後啟用）
+    </button>
   </section>
 
   <!-- ════════════════════════════════════════
        畫面 7：設定
   ════════════════════════════════════════ -->
   <section id="screen-settings" class="screen flex-1 flex-col px-6 pb-8">
-    <h2 class="text-xl mt-2 mb-4">設定</h2>
-    <p class="text-neutral-500 text-sm">P1 階段加：震動、語音、字級、自訂話術。</p>
+    <h2 class="text-xl mt-2 mb-6">設定</h2>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-neutral-400 text-sm mb-2">Claude API Key</label>
+        <input id="api-key-input" type="password"
+          placeholder="sk-ant-..."
+          class="w-full bg-panel border border-edge rounded-xl px-4 py-3 text-neutral-100 text-sm placeholder:text-neutral-600 focus:outline-none focus:border-shield/50" />
+        <p class="text-neutral-600 text-xs mt-1.5">填入後解鎖 AI 真實生成，僅存於本機 localStorage。</p>
+      </div>
+      <button id="btn-save-key"
+        class="btn-press w-full py-3 rounded-xl bg-shield/20 border border-shield/40 text-shield text-sm font-medium">
+        儲存 API Key
+      </button>
+      <button id="btn-clear-key"
+        class="btn-press w-full py-3 rounded-xl bg-edge text-neutral-500 text-sm">
+        清除 API Key
+      </button>
+    </div>
   </section>
 
   <!-- 底部導覽（rage / calm 不顯示） -->
@@ -318,7 +367,7 @@
 /* ════════════════════════════════════════════
    路由
 ════════════════════════════════════════════ */
-const ALL_SCREENS = ['shield','rage','calm','breathe','translator','scripts','settings'];
+const ALL_SCREENS = ['shield','rage','calm','breathe','translator','settings'];
 const HIDE_NAV = new Set(['rage','calm']);
 
 function go(name) {
@@ -530,84 +579,94 @@ document.getElementById('btn-calm-back').addEventListener('click', () => {
 });
 
 /* ════════════════════════════════════════════
-   翻譯機
+   禮貌化回應生成器
 ════════════════════════════════════════════ */
-const INTENT_MAP = [
-  {
-    keywords: /殺價|降價|便宜一點|算便宜|少一點|打折|太貴|貴死|貴什麼|買這麼貴|這種價|不值|划不來|砍價|再便宜|少個零/,
-    responses: [
-      '不好意思，這個價格已經是我們的底價了，沒有辦法再調整，感謝您的理解。',
-      '抱歉，這價格我們已經做到最低，品質有保障，請見諒。',
-      '謝謝您的詢問，這個定價是固定的，無法再優惠，歡迎您再考慮看看。',
-    ],
+const SITUATION_DB = {
+  blame_shift: {
+    keywords: /推給我|怪我|我的問題|我的責任|害我|都是我|我錯了|沒溝通|沒做好|甩鍋|推卸/,
+    gray:     '我知道了。',
+    firm:     '我理解你有這樣的感受，但就我所知道的情況，這件事的來龍去脈是這樣的：[說明事實]。我想我們對這件事的理解不太一樣。',
+    boundary: '這件事我的部分我已經做了，責任的歸屬我有自己的判斷。如果你有不同看法，我們可以各自說清楚，但我不會接受這樣的定論。',
   },
-  {
-    keywords: /不好|難吃|爛|品質差|假的|黑心|騙人|不新鮮|有問題|這什麼東西|垃圾|這樣也賣|坑|黑店/,
-    responses: [
-      '非常感謝您的反映，如果有任何問題我們很樂意處理，但請用正常方式溝通，謝謝。',
-      '我們的品質是有把握的，如果您有具體問題歡迎說明，我們會盡力協助。',
-      '不好意思讓您有這樣的感受，但請保持禮貌溝通，謝謝您。',
-    ],
+  attitude: {
+    keywords: /態度|語氣|口氣|公主|兇|嗆|怎麼跟我說話|好像欠她|看不起|瞧不起|高人一等|不尊重/,
+    gray:     '嗯。',
+    firm:     '我覺得我們溝通的方式可以更順暢一點。我想好好把事情講清楚，但需要在比較平等的狀態下談。',
+    boundary: '我願意繼續討論這件事，但前提是互相尊重。這樣的說話方式讓我很難繼續溝通，希望你能理解。',
   },
-  {
-    keywords: /滾|閉嘴|去死|不想理|煩死|閃|不想看到|走開|出去|離開|不服務|不要再來|趕人/,
-    responses: [
-      '不好意思，今天我們的服務就到這裡，希望您有愉快的一天，再見。',
-      '抱歉，我們目前沒辦法繼續這段對話，感謝您的光臨，再見。',
-      '非常抱歉，我們無法繼續服務，請問還有其他客人需要協助嗎？',
-    ],
+  unfair_load: {
+    keywords: /我做比較多|分配不公|都是我在|他沒做|她沒貢獻|份量不均|憑什麼我|白做|出工|不公平/,
+    gray:     '我記住了。',
+    firm:     '我想提一下工作分配的問題。我目前負責的部分比當初討論的多，我希望我們可以重新確認一下每個人的範圍。',
+    boundary: '我做這個沒問題，但我需要這件事被看見。如果分工一直是這樣的狀態，我之後會需要調整我能承擔的範圍。',
   },
-  {
-    keywords: /慢死|等很久|怎麼這麼慢|速度|催|等半天|怎麼還沒|快一點|浪費時間|磨蹭/,
-    responses: [
-      '非常抱歉讓您久等，我們正在盡快處理，請再稍候一下，謝謝您的耐心。',
-      '不好意思讓您等待，目前正在忙碌中，馬上就好，感謝您的體諒。',
-      '抱歉，我們每一份都用心製作，請再等一下，感謝您的支持。',
-    ],
+  supervisor_pressure: {
+    keywords: /主管|老闆|上司|長官|叫我|要我|命令|交代|不合理|壓力|deadline|截止|為什麼是我|加班/i,
+    gray:     '好，我知道了。',
+    firm:     '我會盡力配合，但我想先確認一下這個需求的優先順序，因為目前手上還有其他事情在跑，想確保都能做好。',
+    boundary: '這個我可以做，但我需要說明一下目前的狀況：[說明現況]。如果這是最優先的，我會需要調整其他事項的時程，可以再確認嗎？',
   },
-  {
-    keywords: /白癡|智障|腦殘|廢物|沒用|爛貨|混蛋|去死|你算什麼|你懂什麼|幹|靠北|他媽|媽的|X的|吃屎|臭|賤|你這種|豬/,
-    responses: [
-      '不好意思，我們希望保持友善的溝通環境，謝謝您的配合。',
-      '抱歉，我們無法接受這樣的溝通方式，請您以尊重的態度交流，謝謝。',
-      '我們理解您可能有些不滿，但請保持基本的禮貌，這樣對雙方都好。',
-    ],
+  passive_aggressive: {
+    keywords: /酸|諷刺|話中有話|陰陽怪氣|不是針對你|只是說說|沒什麼意思|大家都知道|聽說|暗示/,
+    gray:     '嗯，謝謝你告訴我。',
+    firm:     '我聽到你說的，但我不太確定你的意思是什麼。如果你有什麼想直接說的，我很樂意聽。',
+    boundary: '我不太習慣這種方式溝通。如果你對我有什麼意見或不滿，我希望你可以直接說，這樣對大家都比較好。',
   },
-  {
-    keywords: /不可能|辦不到|不想|不要|不行|拒絕|不接受|做不到|沒有|沒辦法|不準|不允許|不讓|不給/,
-    responses: [
-      '非常抱歉，這個部分我們確實沒辦法配合，感謝您的理解。',
-      '不好意思，這個需求超出我們的服務範圍，無法協助，請見諒。',
-      '抱歉，這個我們真的做不到，希望您能體諒。',
-    ],
+  repeat_nag: {
+    keywords: /又來|一直|還是|繞回來|說了幾次|講幾遍|重複|一樣的話|又提|沒完|還在|怎麼還/,
+    gray:     '就這樣。',
+    firm:     '這件事我們已經討論過了，我的想法跟上次一樣。如果有新的資訊或角度，我很願意再聊，但目前的立場不會變。',
+    boundary: '這件事我的答案不會變了。我理解你還有想法，但反覆討論同一件事對我們都是消耗，我想把這個話題到這裡結束。',
   },
-];
+};
 
-const FALLBACK = [
-  '不好意思，關於您提到的部分，我們目前沒有辦法配合，感謝您的理解。',
-  '抱歉，這個部分我們立場不同，希望您能理解，謝謝。',
-  '感謝您的意見，我們會記下來，今天就先到這裡，謝謝您。',
-];
+const FALLBACK = {
+  gray:     '好。',
+  firm:     '我理解你的感受，但這件事我有自己的看法。',
+  boundary: '我的答案不會改變，這件事到這裡結束。',
+};
 
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-function translate(text) {
-  if (!text.trim()) return '（先說說你想罵什麼？）';
-  for (const intent of INTENT_MAP) {
-    if (intent.keywords.test(text)) return pick(intent.responses);
+function detectSituation(text) {
+  for (const sit of Object.values(SITUATION_DB)) {
+    if (sit.keywords.test(text)) return sit;
   }
-  return pick(FALLBACK);
+  return null;
 }
 
-document.getElementById('btn-translate').addEventListener('click', () => {
-  const out = translate(document.getElementById('rant-input').value);
-  document.getElementById('translated-output').textContent = out;
+function renderResponses(sit) {
+  const s = sit || FALLBACK;
+  document.getElementById('resp-gray').textContent     = s.gray;
+  document.getElementById('resp-firm').textContent     = s.firm;
+  document.getElementById('resp-boundary').textContent = s.boundary;
+  const cards = document.getElementById('response-cards');
+  cards.classList.remove('hidden');
+  setTimeout(() => cards.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+document.querySelectorAll('.scenario-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.scenario-chip').forEach(c =>
+      c.classList.remove('!border-shield/60', 'text-shield'));
+    chip.classList.add('!border-shield/60', 'text-shield');
+    if (navigator.vibrate) navigator.vibrate(8);
+    renderResponses(SITUATION_DB[chip.dataset.scenario]);
+  });
 });
 
-document.getElementById('btn-copy').addEventListener('click', async () => {
-  const txt = document.getElementById('translated-output').textContent;
-  try { await navigator.clipboard.writeText(txt); } catch (e) {}
-  if (navigator.vibrate) navigator.vibrate(15);
+document.getElementById('btn-generate').addEventListener('click', () => {
+  const text = document.getElementById('rant-input').value.trim();
+  renderResponses(text ? detectSituation(text) : null);
+});
+
+document.querySelectorAll('.copy-resp').forEach((btn, i) => {
+  const ids = ['resp-gray', 'resp-firm', 'resp-boundary'];
+  btn.addEventListener('click', async () => {
+    const txt = document.getElementById(ids[i]).textContent;
+    try { await navigator.clipboard.writeText(txt); } catch (e) {}
+    btn.textContent = '✓ 已複製';
+    setTimeout(() => { btn.textContent = '複製'; }, 1200);
+    if (navigator.vibrate) navigator.vibrate(15);
+  });
 });
 
 document.getElementById('btn-voice').addEventListener('click', () => {
@@ -619,33 +678,96 @@ document.getElementById('btn-voice').addEventListener('click', () => {
   };
 });
 
-/* ════════════════════════════════════════════
-   話術庫
-════════════════════════════════════════════ */
-const SCRIPTS = [
-  '不好意思，這個價錢已經是底價了，沒辦法再低喔。',
-  '老闆說今天就這個價，您要不要再考慮一下？',
-  '抱歉，這部分我們沒辦法配合，謝謝您。',
-  '不好意思，後面還有客人，麻煩您決定一下。',
-  '這個品質就是這個價格，您可以再比較看看。',
-  '不好意思，做生意要互相，這樣我會虧本。',
-  '謝謝您今天過來，祝您順心。',
-  '我們不接受這樣的講話方式，請您離開，謝謝。',
-];
+/* ── AI 真實生成 ── */
+function getApiKey() { return localStorage.getItem('shield_api_key') || ''; }
 
-const list = document.getElementById('scripts-list');
-SCRIPTS.forEach(s => {
-  const li = document.createElement('li');
-  li.className = 'p-4 rounded-2xl bg-panel border border-edge text-neutral-200 btn-press active:bg-edge cursor-pointer';
-  li.textContent = s;
-  li.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(s); } catch (e) {}
-    li.classList.add('!border-shield/60');
-    setTimeout(() => li.classList.remove('!border-shield/60'), 600);
-    if (navigator.vibrate) navigator.vibrate(15);
+function syncLlmButton() {
+  const btn = document.getElementById('btn-llm');
+  const has = !!getApiKey();
+  btn.disabled = !has;
+  btn.className = has
+    ? 'btn-press mt-3 w-full py-3 rounded-xl bg-shield/10 border border-shield/30 text-shield text-sm'
+    : 'btn-press mt-3 w-full py-3 rounded-xl bg-edge/50 border border-neutral-800 text-neutral-700 text-sm';
+  btn.textContent = has ? '✦ AI 真實生成' : '✦ AI 真實生成（設定 › 填入 API Key 後啟用）';
+}
+
+async function callLLM(text) {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+  const prompt = `你是一個人際衝突應對助理，專門幫助面對難搞同學、主管或朋友的人。
+
+使用者描述的狀況：「${text}」
+
+請生成三種回應，每種一行，用換行分隔，不要加編號或標題：
+第一行：安全中性版（最短，像一塊無聊的石頭，不給對方能量）
+第二行：禮貌堅定版（有禮貌但立場清楚，使用 I statement）
+第三行：設定界線版（適合重複發生時，明確說出你的底線）
+
+只輸出三行，不要任何解釋。`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }],
+    }),
   });
-  list.appendChild(li);
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  const lines = data.content[0].text.trim().split('\n').map(s => s.trim()).filter(Boolean);
+  return {
+    gray:     lines[0] || '好。',
+    firm:     lines[1] || '我理解，但我的立場是清楚的。',
+    boundary: lines[2] || '這件事我的答案不會改變。',
+  };
+}
+
+document.getElementById('btn-llm').addEventListener('click', async () => {
+  const text = document.getElementById('rant-input').value.trim();
+  if (!text) { alert('請先描述發生的狀況。'); return; }
+  const btn = document.getElementById('btn-llm');
+  btn.textContent = '生成中…';
+  btn.disabled = true;
+  try {
+    const result = await callLLM(text);
+    if (result) renderResponses(result);
+  } catch (e) {
+    alert('呼叫失敗，請確認 API Key 是否正確，或網路是否正常。');
+  } finally {
+    btn.disabled = false;
+    syncLlmButton();
+  }
 });
+
+/* ── 設定頁：API Key ── */
+(function initSettings() {
+  const input = document.getElementById('api-key-input');
+  input.value = getApiKey();
+  syncLlmButton();
+
+  document.getElementById('btn-save-key').addEventListener('click', () => {
+    const v = input.value.trim();
+    if (v) { localStorage.setItem('shield_api_key', v); }
+    syncLlmButton();
+    if (navigator.vibrate) navigator.vibrate(15);
+    document.getElementById('btn-save-key').textContent = '✓ 已儲存';
+    setTimeout(() => { document.getElementById('btn-save-key').textContent = '儲存 API Key'; }, 1500);
+  });
+
+  document.getElementById('btn-clear-key').addEventListener('click', () => {
+    localStorage.removeItem('shield_api_key');
+    input.value = '';
+    syncLlmButton();
+    if (navigator.vibrate) navigator.vibrate(8);
+  });
+})();
 
 /* ════════════════════════════════════════════
    PWA
