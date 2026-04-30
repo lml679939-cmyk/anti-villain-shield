@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
@@ -774,7 +774,7 @@ document.getElementById('btn-llm').addEventListener('click', async () => {
 ════════════════════════════════════════════ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('[SW] 註冊失敗:', err));
   });
 }
 </script>
